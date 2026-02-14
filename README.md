@@ -51,7 +51,25 @@ Default behavior is **conservative**: decisions/commitments/preferences/lessons 
 - `/commitments` lists open commitments
 - `/done <C-...>` marks a commitment done
 
-## Install (dev)
+## Install
+
+### Non‑tech install (goal)
+
+Target experience (no terminal, no JSON):
+1) Open OpenClaw → **Plugins**
+2) Find **Local Vault Memory** → **Install**
+3) Open **Settings** for the plugin
+4) Toggle:
+   - **Auto‑capture:** ON
+   - **Auto‑promote:** Safe
+   - **Inbox retention:** 30 days
+5) Done.
+
+Notes:
+- This creates/uses local markdown files inside your vault (no cloud).
+- Safe auto‑promote only promotes **Decisions + Commitments**.
+
+### Developer install (today)
 
 > This repo is intentionally minimal; we’ll harden + add tests before publishing.
 
@@ -61,13 +79,40 @@ npm i
 npm run build
 ```
 
-2) Install plugin into OpenClaw (dev path install depends on OpenClaw plugin tooling).
+2) Install into OpenClaw (dev path install). The exact command depends on your OpenClaw plugin tooling/version.
+
+3) Configure the plugin (recommended trial config):
+```json
+{
+  "vaultRoot": "/Users/pramod/clawd",
+  "autoCapture": true,
+  "captureMode": "conservative",
+  "autoPromote": "safe",
+  "inboxRetentionDays": 30,
+  "maxInjectChars": 2500
+}
+```
 
 ## Config
 
 - `vaultRoot` (default `/Users/pramod/clawd`)
 - `maxInjectChars` (default `2500`)
 - `debug` (default `false`)
+
+## Uninstall / Disable
+
+Non‑tech uninstall (goal): Open OpenClaw → Plugins → Local Vault Memory → **Disable** or **Uninstall**.
+
+Developer uninstall (today): remove/disable the plugin via your OpenClaw plugin tooling.
+
+Data note:
+- Uninstalling the plugin **does not delete** your vault files by default (your markdown files remain on disk).
+- Captured data locations (default when vaultRoot is `/Users/pramod/clawd`):
+  - `memory/YYYY-MM-DD.md` (daily log)
+  - `MEMORY.md` (curated long-term)
+  - `project_anchors/MEMORY_INBOX.md` (staging)
+  - `project_anchors/DECISIONS.md`
+  - `project_anchors/COMMITMENTS.md`
 
 ## Safety
 
