@@ -1,6 +1,6 @@
 import type { PluginConfig } from "../config.js";
 import { appendRemember, resolveVaultPaths, type VaultPaths } from "../lib/fsVault.js";
-import { appendInbox, listInbox } from "../lib/inbox.js";
+import { appendInbox, listInbox, pruneInbox } from "../lib/inbox.js";
 import { promoteInboxEntry, shouldAutoPromoteSafe } from "../lib/promote.js";
 import { redactSecrets } from "../lib/redact.js";
 
@@ -159,6 +159,13 @@ export function buildCaptureHandler(cfg: PluginConfig) {
     }
 
     conservativeCapture(paths, joined);
+
+    // Retention: prune inbox periodically (best-effort; never fails the turn)
+    try {
+      pruneInbox(paths, cfg.inboxRetentionDays);
+    } catch {
+      // ignore
+    }
 
     if (cfg.autoPromote === "safe") {
       maybeAutoPromoteSafe(paths);

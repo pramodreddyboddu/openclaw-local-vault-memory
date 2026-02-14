@@ -19,6 +19,9 @@ export const configSchema = Type.Object(
     ),
 
     debug: Type.Optional(Type.Boolean({ default: false })),
+
+    // Retention: prune staged inbox entries after N days (default 30)
+    inboxRetentionDays: Type.Optional(Type.Number({ default: 30, minimum: 1, maximum: 365 })),
   },
   { additionalProperties: false }
 );
@@ -30,6 +33,7 @@ export type PluginConfig = {
   captureMode: "conservative" | "everything";
   autoPromote: "off" | "safe";
   debug: boolean;
+  inboxRetentionDays: number;
 };
 
 export function parseConfig(raw: unknown): PluginConfig {
@@ -51,5 +55,6 @@ export function parseConfig(raw: unknown): PluginConfig {
     captureMode,
     autoPromote,
     debug: typeof obj.debug === "boolean" ? obj.debug : false,
+    inboxRetentionDays: typeof obj.inboxRetentionDays === "number" ? obj.inboxRetentionDays : 30,
   };
 }

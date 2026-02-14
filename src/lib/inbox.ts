@@ -117,9 +117,72 @@ export function getInboxById(paths: VaultPaths, id: string): InboxEntry | null {
 export function markInboxPromoted(paths: VaultPaths, id: string): boolean {
   ensureInbox(paths);
   const md = fs.readFileSync(paths.inboxMd, "utf8");
-  const re = new RegExp(`(##\\s+${id.replace(/[-/\\^$*+?.()|[\\]{}]/g, "\\$&")}\\s+\\([^)]+\\)\\s*\\n-\\s+Status:\\s+)pending`, "m");
+  const re = new RegExp(
+    `(##\\s+${id.replace(/[-/\\^$*+?.()|[\\]{}]/g, "\\$&")}\\s+\\([^)]+\\)\\s*\\n-\\s+Status:\\s+)pending`,
+    "m",
+  );
   const next = md.replace(re, `$1promoted`);
   if (next === md) return false;
   fs.writeFileSync(paths.inboxMd, next, "utf8");
   return true;
+}
+
+export type PruneResult = { ok: true; pruned: number } | { ok: false; message: string };
+
+export function pruneInbox(paths: VaultPaths, retentionDays: number): PruneResult {
+  ensureInbox(paths);
+
+  const days = Number.isFinite(retentionDays) ? Math.max(1, Math.min(365, retentionDays)) : 30;
+  const cutoffMs = Date.now() - days * 24 * 60 * 60 * 1000;
+
+  const md = fs.readFileSync(paths.inboxMd, "utf8");
+  const lines = md.split(/\r?\n/);
+
+  const keepBlocks: string[] = [];
+  let curLines: string[] = [];
+  let curCreated: string | null = null;
+
+  const flush = () => {
+    if (!curLines.length) return;
+    let keep = true;
+    if (curCreated) {
+      const t = Date.parse(curCreated);
+      if (Number.isFinite(t) && t < cutoffMs) keep = false;
+    }
+    if (keep) keepBlocks.push(curLines.join("\n"));
+    curLines = [];
+    curCreated = null;
+  };
+
+  // Preserve header up to first entry
+  const header: string[] = [];
+  let inEntries = false;
+
+  for (const raw of lines) {
+    const isH = /^##\s+M-\d{8}-\d{3}\s+\([^)]+\)\s*$/.test(raw);
+    if (isH) {
+      if (!inEntries) inEntries = true;
+      flush();
+      curLines.push(raw);
+      continue;
+    }
+
+    if (!inEntries) {
+      header.push(raw);
+      continue;
+    }
+
+    const c = raw.match(/^-\s+Created:\s+(.+)$/);
+    if (c) curCreated = c[1].trim();
+
+    curLines.push(raw);
+  }
+  flush();
+
+  const next = `${header.join("\n").trimEnd()}\n\n${keepBlocks.join("\n\n").trim()}`.trimEnd() + "\n";
+  const beforeCount = listInbox(paths, 1000000).length;
+  fs.writeFileSync(paths.inboxMd, next, "utf8");
+  const afterCount = listInbox(paths, 1000000).length;
+
+  return { ok: true, pruned: Math.max(0, beforeCount - afterCount) };
 }
