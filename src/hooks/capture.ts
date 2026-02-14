@@ -1,12 +1,6 @@
 import type { PluginConfig } from "../config.js";
-import {
-  appendRemember,
-  appendToCommitments,
-  appendToLessons,
-  appendDecision,
-  resolveVaultPaths,
-  type VaultPaths,
-} from "../lib/fsVault.js";
+import { appendRemember, resolveVaultPaths, type VaultPaths } from "../lib/fsVault.js";
+import { appendInbox } from "../lib/inbox.js";
 import { redactSecrets } from "../lib/redact.js";
 
 function getLastTurn(messages: unknown[]): unknown[] {
@@ -126,13 +120,10 @@ function conservativeCapture(paths: VaultPaths, turnText: string) {
   const prefs = unique(cap.preferences, 3);
   const lessons = unique(cap.lessons, 3);
 
-  for (const d of decisions) appendDecision(paths, d);
-
-  // Preferences are stored as commitments in MEMORY.md for now (keep MVP simple)
-  for (const p of prefs) appendToCommitments(paths, `[preference] ${p}`);
-
-  for (const c of commitments) appendToCommitments(paths, c);
-  for (const l of lessons) appendToLessons(paths, l);
+  for (const d of decisions) appendInbox(paths, "decision", d);
+  for (const c of commitments) appendInbox(paths, "commitment", c);
+  for (const p of prefs) appendInbox(paths, "preference", p);
+  for (const l of lessons) appendInbox(paths, "lesson", l);
 }
 
 export function buildCaptureHandler(cfg: PluginConfig) {

@@ -11,8 +11,10 @@ import {
   appendDecision,
   appendToCommitments,
   appendToLessons,
+  appendToPreferences,
 } from "../dist/lib/fsVault.js";
 import { redactSecrets } from "../dist/lib/redact.js";
+import { appendInbox, listInbox, markInboxPromoted } from "../dist/lib/inbox.js";
 
 function mkVault() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "vault-"));
@@ -65,4 +67,28 @@ test("appendToCommitments and appendToLessons append bullets", () => {
   const md = fs.readFileSync(paths.memoryMd, "utf8");
   assert.ok(md.includes("Follow up tomorrow"));
   assert.ok(md.includes("Never deploy Fridays"));
+});
+
+test("appendToPreferences appends bullets", () => {
+  const root = mkVault();
+  const paths = resolveVaultPaths(root);
+  appendToPreferences(paths, "Likes concise replies");
+  const md = fs.readFileSync(paths.memoryMd, "utf8");
+  assert.ok(md.includes("Likes concise replies"));
+});
+
+test("inbox append + list + promote marker", () => {
+  const root = mkVault();
+  const paths = resolveVaultPaths(root);
+  const e1 = appendInbox(paths, "decision", "Decision: use local-first");
+  const e2 = appendInbox(paths, "lesson", "Lesson: avoid cloud keys");
+  const items = listInbox(paths, 10);
+  assert.ok(items.some((e) => e.id === e1.id));
+  assert.ok(items.some((e) => e.id === e2.id));
+
+  const ok = markInboxPromoted(paths, e1.id);
+  assert.equal(ok, true);
+  const after = listInbox(paths, 10);
+  const promoted = after.find((e) => e.id === e1.id);
+  assert.equal(promoted?.status, "promoted");
 });

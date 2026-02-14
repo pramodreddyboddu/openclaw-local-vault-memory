@@ -25,7 +25,13 @@ It injects a small context block built from:
 - `/remember <text>` appends to today’s `memory/YYYY-MM-DD.md`
 
 ### Auto-capture (opt-in)
-When enabled (`autoCapture: true`), the plugin will capture high-signal memories locally after each successful turn.
+When enabled (`autoCapture: true`), the plugin will capture high-signal candidate memories locally after each successful turn.
+
+**Important:** auto-capture writes to a staging file first:
+- `project_anchors/MEMORY_INBOX.md`
+
+Nothing is promoted into `MEMORY.md` / `DECISIONS.md` until you manually approve it via `/promote <id>`.
+
 Default behavior is **conservative**: decisions/commitments/preferences/lessons only.
 
 ### Manual recall
@@ -33,6 +39,10 @@ Default behavior is **conservative**: decisions/commitments/preferences/lessons 
   - `WORKING_SET.md`, `VAULT_INDEX.md`, `MEMORY.md`
   - last ~7 daily logs
   - all `project_anchors/*.md`
+
+### Inbox + promotion
+- `/inbox [n]` lists recent staged memories
+- `/promote <id>` promotes one staged memory into long-term files
 
 ## Install (dev)
 

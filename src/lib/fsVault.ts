@@ -9,17 +9,20 @@ export type VaultPaths = {
   memoryMd: string;
   dailyDir: string;
   anchorsDir: string;
+  inboxMd: string;
 };
 
 export function resolveVaultPaths(vaultRoot: string): VaultPaths {
   const root = vaultRoot;
+  const anchorsDir = path.join(root, "project_anchors");
   return {
     root,
-    workingSet: path.join(root, "project_anchors", "WORKING_SET.md"),
-    vaultIndex: path.join(root, "project_anchors", "VAULT_INDEX.md"),
+    workingSet: path.join(anchorsDir, "WORKING_SET.md"),
+    vaultIndex: path.join(anchorsDir, "VAULT_INDEX.md"),
     memoryMd: path.join(root, "MEMORY.md"),
     dailyDir: path.join(root, "memory"),
-    anchorsDir: path.join(root, "project_anchors"),
+    anchorsDir,
+    inboxMd: path.join(anchorsDir, "MEMORY_INBOX.md"),
   };
 }
 
@@ -190,6 +193,13 @@ export function appendToLessons(paths: VaultPaths, text: string): { file: string
   const file = paths.memoryMd;
   const bullet = redactSecrets(text).trim();
   appendUnderHeading(file, "## 📚 Lessons", bullet);
+  return { file };
+}
+
+export function appendToPreferences(paths: VaultPaths, text: string): { file: string } {
+  const file = paths.memoryMd;
+  const bullet = redactSecrets(text).trim();
+  appendUnderHeading(file, "## 🎛 Preferences", bullet);
   return { file };
 }
 
