@@ -44,6 +44,10 @@ Default behavior is **conservative**: decisions/commitments/preferences/lessons 
 - `/inbox [n]` lists recent staged memories
 - `/promote <id>` promotes one staged memory into long-term files
 
+### Commitments (shadow follow-ups)
+- `/commitments` lists open commitments
+- `/done <C-...>` marks a commitment done
+
 ## Install (dev)
 
 > This repo is intentionally minimal; we’ll harden + add tests before publishing.

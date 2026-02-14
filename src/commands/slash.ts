@@ -10,6 +10,7 @@ import {
   simpleSearch,
 } from "../lib/fsVault.js";
 import { getInboxById, listInbox, markInboxPromoted } from "../lib/inbox.js";
+import { addCommitment, listCommitments, markCommitmentDone } from "../lib/commitments.js";
 
 export function registerSlashCommands(api: OpenClawPluginApi, cfg: PluginConfig) {
   const paths = resolveVaultPaths(cfg.vaultRoot);
@@ -71,9 +72,11 @@ export function registerSlashCommands(api: OpenClawPluginApi, cfg: PluginConfig)
         return { text: `Promoted ${id} → DECISIONS (${res.id})` };
       }
       if (entry.type === "commitment") {
+        const c = addCommitment(paths, entry.text);
+        // Also add to long-term commitments section (curated)
         appendToCommitments(paths, entry.text);
         markInboxPromoted(paths, id);
-        return { text: `Promoted ${id} → MEMORY.md (Commitments)` };
+        return { text: `Promoted ${id} → COMMITMENTS (${c.id}) + MEMORY.md (Commitments)` };
       }
       if (entry.type === "lesson") {
         appendToLessons(paths, entry.text);
@@ -90,6 +93,31 @@ export function registerSlashCommands(api: OpenClawPluginApi, cfg: PluginConfig)
       appendToCommitments(paths, `[inbox:${entry.type}] ${entry.text}`);
       markInboxPromoted(paths, id);
       return { text: `Promoted ${id} → MEMORY.md (Commitments)` };
+    },
+  });
+
+  api.registerCommand({
+    name: "commitments",
+    description: "List open commitments (shadow follow-ups).",
+    handler: async (ctx: any) => {
+      const items = listCommitments(paths, "open", 20);
+      if (items.length === 0) return { text: "No open commitments." };
+      const lines = items
+        .slice(-20)
+        .map((c) => `- ${c.id} — ${c.text.slice(0, 140)}`)
+        .join("\n");
+      return { text: `Open commitments (${items.length})\n\n${lines}\n\nUse /done <id> to close one.` };
+    },
+  });
+
+  api.registerCommand({
+    name: "done",
+    description: "Mark a commitment as done.",
+    handler: async (ctx: any) => {
+      const id = String(ctx?.text ?? ctx?.args?.text ?? "").trim();
+      if (!id) return { text: "Usage: /done <C-YYYYMMDD-###>" };
+      const ok = markCommitmentDone(paths, id);
+      return { text: ok ? `Marked done: ${id}` : `Not found/open: ${id}` };
     },
   });
 }

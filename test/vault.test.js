@@ -15,6 +15,7 @@ import {
 } from "../dist/lib/fsVault.js";
 import { redactSecrets } from "../dist/lib/redact.js";
 import { appendInbox, listInbox, markInboxPromoted } from "../dist/lib/inbox.js";
+import { addCommitment, listCommitments, markCommitmentDone } from "../dist/lib/commitments.js";
 
 function mkVault() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "vault-"));
@@ -91,4 +92,19 @@ test("inbox append + list + promote marker", () => {
   const after = listInbox(paths, 10);
   const promoted = after.find((e) => e.id === e1.id);
   assert.equal(promoted?.status, "promoted");
+});
+
+test("commitments ledger add + list + done", () => {
+  const root = mkVault();
+  const paths = resolveVaultPaths(root);
+  const c = addCommitment(paths, "Follow up with Pramod tomorrow");
+  assert.ok(c.id.startsWith("C-"));
+
+  const open = listCommitments(paths, "open", 50);
+  assert.ok(open.some((x) => x.id === c.id));
+
+  const ok = markCommitmentDone(paths, c.id);
+  assert.equal(ok, true);
+  const stillOpen = listCommitments(paths, "open", 50);
+  assert.ok(!stillOpen.some((x) => x.id === c.id));
 });

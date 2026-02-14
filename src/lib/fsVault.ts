@@ -10,6 +10,7 @@ export type VaultPaths = {
   dailyDir: string;
   anchorsDir: string;
   inboxMd: string;
+  commitmentsMd: string;
 };
 
 export function resolveVaultPaths(vaultRoot: string): VaultPaths {
@@ -23,6 +24,7 @@ export function resolveVaultPaths(vaultRoot: string): VaultPaths {
     dailyDir: path.join(root, "memory"),
     anchorsDir,
     inboxMd: path.join(anchorsDir, "MEMORY_INBOX.md"),
+    commitmentsMd: path.join(anchorsDir, "COMMITMENTS.md"),
   };
 }
 
