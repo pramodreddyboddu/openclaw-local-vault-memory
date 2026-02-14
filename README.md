@@ -8,6 +8,11 @@ Local-first, filesystem-backed memory for OpenClaw.
 
 ## What it does (MVP)
 
+### Who this helps
+- **New users (no setup):** get durable `/remember` + `/recall` immediately (daily log is created automatically).
+- **Intermediate users (existing notes):** point `vaultRoot` at their notes folder; `/recall` works without migration.
+- **Power users (structured vault):** get trigger-based recall injection from `VAULT_INDEX.md` + `WORKING_SET.md`.
+
 ### Auto-recall (safe, deterministic)
 Before each agent turn, it injects a small context block built from:
 - `project_anchors/VAULT_INDEX.md`
