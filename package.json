@@ -1,0 +1,25 @@
+{
+  "name": "@pramod/local-vault-memory",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Local-first, filesystem-backed memory plugin for OpenClaw (no cloud, auditable markdown).",
+  "license": "MIT",
+  "scripts": {
+    "check-types": "tsc --noEmit",
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@sinclair/typebox": "^0.34.47"
+  },
+  "peerDependencies": {
+    "openclaw": ">=2026.1.29"
+  },
+  "openclaw": {
+    "extensions": [
+      "./dist/index.js"
+    ]
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

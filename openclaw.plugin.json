@@ -1,0 +1,33 @@
+{
+  "id": "local-vault-memory",
+  "kind": "memory",
+  "uiHints": {
+    "vaultRoot": {
+      "label": "Vault root (directory)",
+      "placeholder": "/Users/pramod/clawd",
+      "help": "Directory containing MEMORY.md, memory/, project_anchors/.",
+      "advanced": true
+    },
+    "maxInjectChars": {
+      "label": "Max injected context (chars)",
+      "placeholder": "2500",
+      "help": "Hard cap for injected context block.",
+      "advanced": true
+    },
+    "debug": {
+      "label": "Debug logging",
+      "help": "Verbose logs for recall/search",
+      "advanced": true
+    }
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "vaultRoot": { "type": "string" },
+      "maxInjectChars": { "type": "number", "minimum": 500, "maximum": 20000 },
+      "debug": { "type": "boolean" }
+    },
+    "required": []
+  }
+}
