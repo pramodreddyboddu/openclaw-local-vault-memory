@@ -1,6 +1,7 @@
 import type { OpenClawPluginApi } from "openclaw/plugin-sdk";
 import { configSchema, parseConfig } from "./config.js";
 import { buildRecallHandler } from "./hooks/recall.js";
+import { buildCaptureHandler } from "./hooks/capture.js";
 import { registerSlashCommands } from "./commands/slash.js";
 
 export default {
@@ -17,8 +18,14 @@ export default {
     const recall = buildRecallHandler(cfg);
     api.on("before_agent_start", recall);
 
-    // Manual-only capture
+    // Manual capture (always available)
     registerSlashCommands(api, cfg);
+
+    // Auto-capture (opt-in)
+    if (cfg.autoCapture) {
+      const capture = buildCaptureHandler(cfg);
+      api.on("agent_end", capture);
+    }
 
     api.registerService({
       id: "local-vault-memory",

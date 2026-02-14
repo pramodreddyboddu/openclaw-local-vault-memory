@@ -5,8 +5,9 @@ const TOKEN_PATTERNS: RegExp[] = [
   /\bsm_[A-Za-z0-9]{10,}\b/g,
   // Google OAuth refresh tokens often look like this
   /\b1\/\/0[a-zA-Z0-9_-]{20,}\b/g,
-  // JWT-ish
+  // JWT-ish (3 parts) and a shorter 2-part fallback
   /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/g,
+  /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/g,
 ];
 
 export function redactSecrets(text: string): string {

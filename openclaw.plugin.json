@@ -14,6 +14,16 @@
       "help": "Hard cap for injected context block.",
       "advanced": true
     },
+    "autoCapture": {
+      "label": "Auto-capture (opt-in)",
+      "help": "When enabled, captures high-signal memories locally after each successful turn (no cloud).",
+      "advanced": true
+    },
+    "captureMode": {
+      "label": "Capture mode",
+      "help": "conservative = only decisions/commitments/preferences/lessons; everything = capture last turn verbatim to daily log.",
+      "advanced": true
+    },
     "debug": {
       "label": "Debug logging",
       "help": "Verbose logs for recall/search",
@@ -26,6 +36,8 @@
     "properties": {
       "vaultRoot": { "type": "string" },
       "maxInjectChars": { "type": "number", "minimum": 500, "maximum": 20000 },
+      "autoCapture": { "type": "boolean" },
+      "captureMode": { "type": "string", "enum": ["conservative", "everything"] },
       "debug": { "type": "boolean" }
     },
     "required": []

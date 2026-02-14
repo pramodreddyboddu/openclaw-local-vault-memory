@@ -145,17 +145,84 @@ export function simpleSearch(paths: VaultPaths, query: string, maxHits = 7): Rec
   return hits;
 }
 
-export function appendRemember(paths: VaultPaths, text: string): { file: string } {
-  const now = new Date();
+function todayDailyFile(paths: VaultPaths, now = new Date()): string {
   const y = now.getFullYear();
   const m = String(now.getMonth() + 1).padStart(2, "0");
   const d = String(now.getDate()).padStart(2, "0");
-  const dailyFile = path.join(paths.dailyDir, `${y}-${m}-${d}.md`);
+  return path.join(paths.dailyDir, `${y}-${m}-${d}.md`);
+}
 
+export function appendRemember(paths: VaultPaths, text: string): { file: string } {
+  const dailyFile = todayDailyFile(paths);
   fs.mkdirSync(paths.dailyDir, { recursive: true });
 
   const line = redactSecrets(text).trim();
   const entry = `\n- [remember] ${line}\n`;
   fs.appendFileSync(dailyFile, entry, "utf8");
   return { file: dailyFile };
+}
+
+function appendUnderHeading(filePath: string, heading: string, bullet: string) {
+  let md = "";
+  try {
+    md = fs.readFileSync(filePath, "utf8");
+  } catch {
+    md = `# ${path.basename(filePath)}\n\n`;
+  }
+
+  if (!md.includes(heading)) {
+    md = md.trimEnd() + `\n\n${heading}\n`;
+  }
+
+  // Append at end; keep it simple and non-destructive.
+  const entry = `- ${bullet.trim()}\n`;
+  fs.writeFileSync(filePath, md.trimEnd() + "\n" + entry, "utf8");
+}
+
+export function appendToCommitments(paths: VaultPaths, text: string): { file: string } {
+  const file = paths.memoryMd;
+  const bullet = redactSecrets(text).trim();
+  appendUnderHeading(file, "## ✅ Commitments", bullet);
+  return { file };
+}
+
+export function appendToLessons(paths: VaultPaths, text: string): { file: string } {
+  const file = paths.memoryMd;
+  const bullet = redactSecrets(text).trim();
+  appendUnderHeading(file, "## 📚 Lessons", bullet);
+  return { file };
+}
+
+function nextDecisionId(decisionsMd: string, ymd: string): string {
+  const re = new RegExp(`\\bD-${ymd}-(\\d{3})\\b`, "g");
+  let max = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(decisionsMd))) {
+    const n = Number(m[1]);
+    if (n > max) max = n;
+  }
+  const next = String(max + 1).padStart(3, "0");
+  return `D-${ymd}-${next}`;
+}
+
+export function appendDecision(paths: VaultPaths, text: string): { file: string; id: string } {
+  const file = path.join(paths.anchorsDir, "DECISIONS.md");
+  fs.mkdirSync(paths.anchorsDir, { recursive: true });
+
+  let md = "";
+  try {
+    md = fs.readFileSync(file, "utf8");
+  } catch {
+    md = "# DECISIONS — Ledger\n\n";
+  }
+
+  const now = new Date();
+  const ymd = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
+  const id = nextDecisionId(md, ymd);
+
+  const line = redactSecrets(text).trim();
+  const entry = `\n## ${id}\n- Date: ${now.toISOString().slice(0, 10)}\n- Decision: ${line}\n`;
+
+  fs.appendFileSync(file, entry, "utf8");
+  return { file, id };
 }

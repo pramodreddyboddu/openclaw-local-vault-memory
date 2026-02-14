@@ -13,13 +13,20 @@ Local-first, filesystem-backed memory for OpenClaw.
 - **Intermediate users (existing notes):** point `vaultRoot` at their notes folder; `/recall` works without migration.
 - **Power users (structured vault):** get trigger-based recall injection from `VAULT_INDEX.md` + `WORKING_SET.md`.
 
-### Auto-recall (safe, deterministic)
-Before each agent turn, it injects a small context block built from:
-- `project_anchors/VAULT_INDEX.md`
-- `project_anchors/WORKING_SET.md`
+### Auto-recall (quiet, deterministic)
+Only injects context when it’s likely useful (e.g. you say “remember/last time/why/decision/link…” or project keywords).
+
+It injects a small context block built from:
+- `project_anchors/WORKING_SET.md` (summary)
+- `project_anchors/VAULT_INDEX.md` (top snippet)
+- optional recall matches (file:line) when explicit recall triggers are used
 
 ### Manual capture
 - `/remember <text>` appends to today’s `memory/YYYY-MM-DD.md`
+
+### Auto-capture (opt-in)
+When enabled (`autoCapture: true`), the plugin will capture high-signal memories locally after each successful turn.
+Default behavior is **conservative**: decisions/commitments/preferences/lessons only.
 
 ### Manual recall
 - `/recall <query>` searches across:
