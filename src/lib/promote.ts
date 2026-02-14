@@ -46,10 +46,18 @@ export function promoteInboxEntry(paths: VaultPaths, entry: InboxEntry): Promote
 
 export function shouldAutoPromoteSafe(entry: InboxEntry): boolean {
   if (entry.status !== "pending") return false;
-  const t = (entry.text || "").toLowerCase();
+
+  // Normalize: strip common markdown emphasis/prefix noise so "**Decision:**" counts.
+  const raw = (entry.text || "").trim();
+  const t = raw
+    .toLowerCase()
+    .replace(/^[^a-z0-9]+/g, "") // leading punctuation/markdown
+    .replace(/^\*\*([^*]+)\*\*:\s*/g, "$1: ") // "**decision**:" -> "decision:"
+    .replace(/^`([^`]+)`:\s*/g, "$1: ") // "`decision`:" -> "decision:"
+    .trim();
 
   if (entry.type === "decision") {
-    if (t.includes("?") ) return false;
+    if (t.includes("?")) return false;
     return (
       t.startsWith("decision:") ||
       t.includes("we decided") ||
