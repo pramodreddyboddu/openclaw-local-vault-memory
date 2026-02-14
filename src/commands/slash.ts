@@ -1,16 +1,9 @@
 import type { OpenClawPluginApi } from "openclaw/plugin-sdk";
 import type { PluginConfig } from "../config.js";
-import {
-  appendDecision,
-  appendRemember,
-  appendToCommitments,
-  appendToLessons,
-  appendToPreferences,
-  resolveVaultPaths,
-  simpleSearch,
-} from "../lib/fsVault.js";
-import { getInboxById, listInbox, markInboxPromoted } from "../lib/inbox.js";
-import { addCommitment, listCommitments, markCommitmentDone } from "../lib/commitments.js";
+import { appendRemember, resolveVaultPaths, simpleSearch } from "../lib/fsVault.js";
+import { getInboxById, listInbox } from "../lib/inbox.js";
+import { promoteInboxEntry } from "../lib/promote.js";
+import { listCommitments, markCommitmentDone } from "../lib/commitments.js";
 
 export function registerSlashCommands(api: OpenClawPluginApi, cfg: PluginConfig) {
   const paths = resolveVaultPaths(cfg.vaultRoot);
@@ -66,33 +59,8 @@ export function registerSlashCommands(api: OpenClawPluginApi, cfg: PluginConfig)
       if (!entry) return { text: `Not found in inbox: ${id}` };
       if (entry.status === "promoted") return { text: `Already promoted: ${id}` };
 
-      if (entry.type === "decision") {
-        const res = appendDecision(paths, entry.text);
-        markInboxPromoted(paths, id);
-        return { text: `Promoted ${id} → DECISIONS (${res.id})` };
-      }
-      if (entry.type === "commitment") {
-        const c = addCommitment(paths, entry.text);
-        // Also add to long-term commitments section (curated)
-        appendToCommitments(paths, entry.text);
-        markInboxPromoted(paths, id);
-        return { text: `Promoted ${id} → COMMITMENTS (${c.id}) + MEMORY.md (Commitments)` };
-      }
-      if (entry.type === "lesson") {
-        appendToLessons(paths, entry.text);
-        markInboxPromoted(paths, id);
-        return { text: `Promoted ${id} → MEMORY.md (Lessons)` };
-      }
-      if (entry.type === "preference") {
-        appendToPreferences(paths, entry.text);
-        markInboxPromoted(paths, id);
-        return { text: `Promoted ${id} → MEMORY.md (Preferences)` };
-      }
-
-      // fallback
-      appendToCommitments(paths, `[inbox:${entry.type}] ${entry.text}`);
-      markInboxPromoted(paths, id);
-      return { text: `Promoted ${id} → MEMORY.md (Commitments)` };
+      const res = promoteInboxEntry(paths, entry);
+      return { text: res.message };
     },
   });
 

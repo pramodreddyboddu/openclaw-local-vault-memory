@@ -30,9 +30,12 @@ When enabled (`autoCapture: true`), the plugin will capture high-signal candidat
 **Important:** auto-capture writes to a staging file first:
 - `project_anchors/MEMORY_INBOX.md`
 
-Nothing is promoted into `MEMORY.md` / `DECISIONS.md` until you manually approve it via `/promote <id>`.
-
 Default behavior is **conservative**: decisions/commitments/preferences/lessons only.
+
+### Auto-promote (optional)
+- `autoPromote: "off" | "safe"` (default: off)
+- `safe` will auto-promote only very high-confidence **decisions + commitments** to avoid inbox backlog.
+  - Preferences/lessons remain pending by default.
 
 ### Manual recall
 - `/recall <query>` searches across:

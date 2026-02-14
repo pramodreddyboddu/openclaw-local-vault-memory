@@ -24,6 +24,11 @@
       "help": "conservative = only decisions/commitments/preferences/lessons; everything = capture last turn verbatim to daily log.",
       "advanced": true
     },
+    "autoPromote": {
+      "label": "Auto-promote",
+      "help": "off (default) = stage only. safe = automatically promote only very high-confidence decisions+commitments to reduce inbox backlog.",
+      "advanced": true
+    },
     "debug": {
       "label": "Debug logging",
       "help": "Verbose logs for recall/search",
@@ -38,6 +43,7 @@
       "maxInjectChars": { "type": "number", "minimum": 500, "maximum": 20000 },
       "autoCapture": { "type": "boolean" },
       "captureMode": { "type": "string", "enum": ["conservative", "everything"] },
+      "autoPromote": { "type": "string", "enum": ["off", "safe"] },
       "debug": { "type": "boolean" }
     },
     "required": []

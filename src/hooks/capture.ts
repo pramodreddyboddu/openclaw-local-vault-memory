@@ -1,6 +1,7 @@
 import type { PluginConfig } from "../config.js";
 import { appendRemember, resolveVaultPaths, type VaultPaths } from "../lib/fsVault.js";
-import { appendInbox } from "../lib/inbox.js";
+import { appendInbox, listInbox } from "../lib/inbox.js";
+import { promoteInboxEntry, shouldAutoPromoteSafe } from "../lib/promote.js";
 import { redactSecrets } from "../lib/redact.js";
 
 function getLastTurn(messages: unknown[]): unknown[] {
@@ -126,6 +127,14 @@ function conservativeCapture(paths: VaultPaths, turnText: string) {
   for (const l of lessons) appendInbox(paths, "lesson", l);
 }
 
+function maybeAutoPromoteSafe(paths: VaultPaths) {
+  const recent = listInbox(paths, 15);
+  for (const e of recent) {
+    if (!shouldAutoPromoteSafe(e)) continue;
+    promoteInboxEntry(paths, e);
+  }
+}
+
 export function buildCaptureHandler(cfg: PluginConfig) {
   const paths = resolveVaultPaths(cfg.vaultRoot);
 
@@ -150,5 +159,9 @@ export function buildCaptureHandler(cfg: PluginConfig) {
     }
 
     conservativeCapture(paths, joined);
+
+    if (cfg.autoPromote === "safe") {
+      maybeAutoPromoteSafe(paths);
+    }
   };
 }
