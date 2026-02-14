@@ -33,16 +33,61 @@ function safeRead(filePath: string, maxBytes = 40_000): string {
   }
 }
 
-export function buildQuickContext(paths: VaultPaths): string {
-  const parts: string[] = [];
+function collectBulletsUnderHeading(md: string, heading: string, max = 5): string[] {
+  const lines = md.split(/\r?\n/);
+  const target = heading.toLowerCase();
 
-  const vi = safeRead(paths.vaultIndex, 25_000);
-  if (vi) parts.push(`# VAULT_INDEX\n${vi}`);
+  let inSection = false;
+  const bullets: string[] = [];
 
+  for (const raw of lines) {
+    const line = raw.trimEnd();
+    const isHeading = /^#{2,6}\s+/.test(line);
+
+    if (isHeading) {
+      const h = line.replace(/^#+\s+/, "").trim().toLowerCase();
+      inSection = h === target;
+      continue;
+    }
+
+    if (!inSection) continue;
+
+    const m = line.trim().match(/^[-*]\s+(.*)$/);
+    if (m?.[1]) {
+      bullets.push(m[1].trim());
+      if (bullets.length >= max) break;
+    }
+  }
+
+  return bullets;
+}
+
+export function buildWorkingSetSummary(paths: VaultPaths, maxPerSection = 5): string {
   const ws = safeRead(paths.workingSet, 25_000);
-  if (ws) parts.push(`# WORKING_SET\n${ws}`);
+  if (!ws) return "";
+
+  const locked = collectBulletsUnderHeading(ws, "Locked Rules (non-negotiable)", maxPerSection);
+  const focus = collectBulletsUnderHeading(ws, "Current Focus (Top 3)", maxPerSection);
+
+  const parts: string[] = [];
+  if (locked.length) parts.push("## Locked Rules\n" + locked.map((b) => `- ${b}`).join("\n"));
+  if (focus.length) parts.push("## Current Focus\n" + focus.map((b) => `- ${b}`).join("\n"));
 
   return parts.join("\n\n").trim();
+}
+
+export function buildVaultIndexSnippet(paths: VaultPaths, maxBytes = 8_000): string {
+  const vi = safeRead(paths.vaultIndex, maxBytes);
+  if (!vi) return "";
+
+  // Keep it small: first ~50 non-empty lines.
+  const lines = vi
+    .split(/\r?\n/)
+    .map((l) => l.trimEnd())
+    .filter((l) => l.trim().length > 0)
+    .slice(0, 50);
+
+  return lines.join("\n").trim();
 }
 
 export type RecallHit = { file: string; line: number; text: string };
