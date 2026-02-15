@@ -59,12 +59,26 @@ type Captured = {
   lessons: string[];
 };
 
+function looksLikeQuotedBlob(line: string): boolean {
+  const t = line.trim();
+  // Common patterns when we accidentally capture quoted assistant output / JSON-ish blobs
+  if (t.startsWith('"body":') || t.startsWith("'body':")) return true;
+  if (t.startsWith("{\"") || t.startsWith('{"') || t.startsWith("{")) return true;
+  if (/^\"\w+\"\s*:\s*/.test(t)) return true;
+  if (/\bUse\s+\/(promote|done|inbox|commitments|recall|remember)\b/i.test(t)) return true;
+  return false;
+}
+
 function classify(text: string): Captured {
   const cleaned = redactSecrets(text)
     .replace(/<local-vault-context>[\s\S]*?<\/local-vault-context>\s*/g, "")
     .trim();
 
-  const lines = cleaned.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const lines = cleaned
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .filter((l) => !looksLikeQuotedBlob(l));
 
   const cap: Captured = {
     decisions: [],
@@ -152,13 +166,20 @@ export function buildCaptureHandler(cfg: PluginConfig) {
       .map((b) => `[role:${b.role}]\n${b.text}\n[/${b.role}]`)
       .join("\n\n");
 
+    // Auto-capture should primarily reflect user intent (avoid promoting our own quoted summaries).
+    // We still keep assistant text available in `captureMode=everything` via appendRemember.
+    const joinedUserOnly = blocks
+      .filter((b) => b.role === "user")
+      .map((b) => `[role:${b.role}]\n${b.text}\n[/${b.role}]`)
+      .join("\n\n");
+
     if (cfg.captureMode === "everything") {
       // dump verbatim to daily log as a remember entry
       appendRemember(paths, joined);
       return;
     }
 
-    conservativeCapture(paths, joined);
+    conservativeCapture(paths, joinedUserOnly || joined);
 
     // Retention: prune inbox periodically (best-effort; never fails the turn)
     try {
