@@ -201,20 +201,36 @@ export function appendRawTurn(paths: VaultPaths, rec: RawTurnRecord): { file: st
 }
 
 function appendUnderHeading(filePath: string, heading: string, bullet: string) {
+  // NOTE: We keep this *append-only* to avoid accidental overwrites.
+  // If the file/heading doesn't exist yet, we create/append the minimum necessary.
+
   let md = "";
+  let exists = true;
   try {
     md = fs.readFileSync(filePath, "utf8");
   } catch {
-    md = `# ${path.basename(filePath)}\n\n`;
+    exists = false;
+    md = "";
   }
 
-  if (!md.includes(heading)) {
-    md = md.trimEnd() + `\n\n${heading}\n`;
-  }
-
-  // Append at end; keep it simple and non-destructive.
   const entry = `- ${bullet.trim()}\n`;
-  fs.writeFileSync(filePath, md.trimEnd() + "\n" + entry, "utf8");
+
+  if (!exists) {
+    const header = `# ${path.basename(filePath)}\n\n${heading}\n`;
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    fs.writeFileSync(filePath, header + entry, "utf8");
+    return;
+  }
+
+  // If heading already present, just append the bullet.
+  if (md.includes(heading)) {
+    fs.appendFileSync(filePath, entry, "utf8");
+    return;
+  }
+
+  // Heading missing: append it + the bullet.
+  const suffix = `\n\n${heading}\n${entry}`;
+  fs.appendFileSync(filePath, suffix, "utf8");
 }
 
 export function appendToCommitments(paths: VaultPaths, text: string): { file: string } {
