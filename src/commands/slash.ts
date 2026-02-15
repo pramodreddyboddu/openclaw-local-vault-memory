@@ -51,6 +51,36 @@ export function registerSlashCommands(api: OpenClawPluginApi, cfg: PluginConfig)
   const paths = resolveVaultPaths(cfg.vaultRoot);
 
   api.registerCommand({
+    name: "home",
+    description: "Show Pamanu home menu (quick links + next actions).",
+    handler: async (_ctx: any) => {
+      const lines = [
+        "Pamanu — Home",
+        "",
+        "Dashboards:",
+        "- Mission Control: http://127.0.0.1:3005/canvas/mission_control_lite/index.html",
+        "- Agent Ops:       http://127.0.0.1:3005/canvas/agent_ops/index.html",
+        "",
+        "Chrome Relay:",
+        "- Attach tab (badge ON), then say what to do.",
+        "",
+        "Voice notes:",
+        "- Auto-transcribe: ON (silent). Say 'show transcript' if needed.",
+        "",
+        "Memory:",
+        `- Raw shadow log: ${paths.rawDir}/YYYY-MM-DD.jsonl`,
+        `- Inbox: ${paths.inboxMd}`,
+        "",
+        "Quick commands:",
+        "- /inbox (list staged captures)",
+        "- /shadow <query> (search raw logs)",
+        "- /remember <note>",
+      ];
+      return { text: lines.join("\n") };
+    },
+  });
+
+  api.registerCommand({
     name: "remember",
     description: "Save a note to local filesystem memory (daily log).",
     // PluginCommandHandler signature may evolve; keep this robust.
