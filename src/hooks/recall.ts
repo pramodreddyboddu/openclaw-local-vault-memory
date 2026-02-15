@@ -38,12 +38,14 @@ export function buildRecallHandler(cfg: PluginConfig) {
     // Quiet by default.
     if (!shouldInject(prompt)) return;
 
-    const wsSummary = buildWorkingSetSummary(paths, 5);
-    const viSnippet = buildVaultIndexSnippet(paths, 8_000);
-
     // Only do broader search on explicit trigger words.
     const pLower = prompt.toLowerCase();
     const deep = TRIGGERS.some((t) => pLower.includes(t));
+
+    // Token discipline: for "project keyword" continuity injections, keep it small.
+    // Vault Index + full-text search only on explicit recall-style prompts.
+    const wsSummary = buildWorkingSetSummary(paths, 5);
+    const viSnippet = deep ? buildVaultIndexSnippet(paths, 8_000) : "";
     const hits = deep ? simpleSearch(paths, prompt, 7) : [];
 
     const sections: string[] = [];
