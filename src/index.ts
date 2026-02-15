@@ -2,6 +2,7 @@ import type { OpenClawPluginApi } from "openclaw/plugin-sdk";
 import { configSchema, parseConfig } from "./config.js";
 import { buildRecallHandler } from "./hooks/recall.js";
 import { buildCaptureHandler } from "./hooks/capture.js";
+import { buildSttHandler } from "./hooks/stt.js";
 import { registerSlashCommands } from "./commands/slash.js";
 
 export default {
@@ -13,6 +14,11 @@ export default {
 
   register(api: OpenClawPluginApi) {
     const cfg = parseConfig(api.pluginConfig);
+
+    // Auto-STT: silently transcribe inbound .ogg voice notes (best-effort)
+    // and prepend transcript for agent understanding.
+    const stt = buildSttHandler(cfg);
+    api.on("before_agent_start", stt, { priority: 100 });
 
     // Auto-recall (safe: only small deterministic files)
     const recall = buildRecallHandler(cfg);
