@@ -58,6 +58,17 @@ export function shouldAutoPromoteSafe(entry: InboxEntry): boolean {
 
   if (entry.type === "decision") {
     if (t.includes("?")) return false;
+    // Reject templates/placeholders that would pollute DECISIONS.md
+    if (
+      raw.includes("<one sentence>") ||
+      /\bdecision:\s*\.\.\.\b/i.test(raw) ||
+      /\bdecision:\s*<.*?>/i.test(raw) ||
+      /\bwhy:\s*\.\.\./i.test(raw) ||
+      /\bwhy:\s*<.*?>/i.test(raw)
+    ) {
+      return false;
+    }
+
     return (
       t.startsWith("decision:") ||
       t.includes("we decided") ||
