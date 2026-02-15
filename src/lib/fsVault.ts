@@ -8,6 +8,7 @@ export type VaultPaths = {
   vaultIndex: string;
   memoryMd: string;
   dailyDir: string;
+  rawDir: string;
   anchorsDir: string;
   inboxMd: string;
   commitmentsMd: string;
@@ -22,6 +23,7 @@ export function resolveVaultPaths(vaultRoot: string): VaultPaths {
     vaultIndex: path.join(anchorsDir, "VAULT_INDEX.md"),
     memoryMd: path.join(root, "MEMORY.md"),
     dailyDir: path.join(root, "memory"),
+    rawDir: path.join(root, "memory", "raw"),
     anchorsDir,
     inboxMd: path.join(anchorsDir, "MEMORY_INBOX.md"),
     commitmentsMd: path.join(anchorsDir, "COMMITMENTS.md"),
@@ -157,6 +159,13 @@ function todayDailyFile(paths: VaultPaths, now = new Date()): string {
   return path.join(paths.dailyDir, `${y}-${m}-${d}.md`);
 }
 
+function todayRawFile(paths: VaultPaths, now = new Date()): string {
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  return path.join(paths.rawDir, `${y}-${m}-${d}.jsonl`);
+}
+
 export function appendRemember(paths: VaultPaths, text: string): { file: string } {
   const dailyFile = todayDailyFile(paths);
   fs.mkdirSync(paths.dailyDir, { recursive: true });
@@ -165,6 +174,30 @@ export function appendRemember(paths: VaultPaths, text: string): { file: string 
   const entry = `\n- [remember] ${line}\n`;
   fs.appendFileSync(dailyFile, entry, "utf8");
   return { file: dailyFile };
+}
+
+export type RawTurnRecord = {
+  ts: string;
+  sessionKey?: string;
+  channel?: string;
+  roleBlocks: { role: string; text: string }[];
+};
+
+export function appendRawTurn(paths: VaultPaths, rec: RawTurnRecord): { file: string } {
+  fs.mkdirSync(paths.rawDir, { recursive: true });
+  const file = todayRawFile(paths);
+
+  // redact secrets in text blocks
+  const safe: RawTurnRecord = {
+    ...rec,
+    roleBlocks: (rec.roleBlocks || []).map((b) => ({
+      role: b.role,
+      text: redactSecrets(String(b.text || "")),
+    })),
+  };
+
+  fs.appendFileSync(file, JSON.stringify(safe) + "\n", "utf8");
+  return { file };
 }
 
 function appendUnderHeading(filePath: string, heading: string, bullet: string) {

@@ -1,5 +1,5 @@
 import type { PluginConfig } from "../config.js";
-import { appendRemember, resolveVaultPaths, type VaultPaths } from "../lib/fsVault.js";
+import { appendRawTurn, appendRemember, resolveVaultPaths, type VaultPaths } from "../lib/fsVault.js";
 import { appendInbox, listInbox, pruneInbox } from "../lib/inbox.js";
 import { promoteInboxEntry, shouldAutoPromoteSafe } from "../lib/promote.js";
 import { redactSecrets } from "../lib/redact.js";
@@ -63,7 +63,7 @@ function looksLikeQuotedBlob(line: string): boolean {
   const t = line.trim();
   // Common patterns when we accidentally capture quoted assistant output / JSON-ish blobs
   if (t.startsWith('"body":') || t.startsWith("'body':")) return true;
-  if (t.startsWith("{\"") || t.startsWith('{"') || t.startsWith("{")) return true;
+  if (t.startsWith('{"') || t.startsWith('{\"') || t.startsWith("{") || t.startsWith("[") ) return true;
   if (/^\"\w+\"\s*:\s*/.test(t)) return true;
   if (/\bUse\s+\/(promote|done|inbox|commitments|recall|remember)\b/i.test(t)) return true;
   return false;
@@ -95,7 +95,7 @@ function classify(text: string): Captured {
       continue;
     }
 
-    if (/(i will|we will|i'll|we'll|promise|follow up|remind me|due|by tomorrow|by monday)/i.test(line)) {
+    if (/(i will|we will|i'll|we'll|promise|follow up|remind me|due|by tomorrow|by monday|by tuesday|by wednesday|by thursday|by friday|by saturday|by sunday)/i.test(line)) {
       cap.commitments.push(line);
       continue;
     }
@@ -149,14 +149,45 @@ function maybeAutoPromoteSafe(paths: VaultPaths) {
   }
 }
 
+function looksLikeBoilerplateSpam(userText: string): boolean {
+  const t = userText.trim();
+  if (!t) return true;
+
+  // Heartbeat prompt spam
+  if (/Read HEARTBEAT\.md if it exists/i.test(t)) return true;
+
+  // Cron reminder spam / system injected reminders
+  if (/^Reminder:/i.test(t)) return true;
+  if (/scheduled reminder has been triggered/i.test(t)) return true;
+
+  // Our own automation boilerplate that shouldn't be stored forever
+  if (/HEARTBEAT_OK\b/i.test(t)) return true;
+
+  return false;
+}
+
 export function buildCaptureHandler(cfg: PluginConfig) {
   const paths = resolveVaultPaths(cfg.vaultRoot);
+
+  // Rate limit per sessionKey to avoid runaway capture in spammy situations.
+  const lastCaptureAtMsBySession = new Map<string, number>();
 
   return async (event: Record<string, unknown>) => {
     if (!cfg.autoCapture) return;
     if (!event.success) return;
+
     const messages = Array.isArray((event as any).messages) ? ((event as any).messages as unknown[]) : [];
     if (messages.length === 0) return;
+
+    const sessionKey = String((event as any).sessionKey || (event as any).session?.key || "").trim();
+    const channel = String((event as any).messageChannel || (event as any).channel || "").trim();
+
+    // Cooldown
+    const cooldownMs = Math.max(0, (cfg.captureCooldownSeconds || 0) * 1000);
+    const key = sessionKey || "(unknown-session)";
+    const now = Date.now();
+    const last = lastCaptureAtMsBySession.get(key) || 0;
+    if (cooldownMs > 0 && now - last < cooldownMs) return;
 
     const turn = getLastTurn(messages);
     const blocks = extractTextBlocks(turn);
@@ -166,20 +197,38 @@ export function buildCaptureHandler(cfg: PluginConfig) {
       .map((b) => `[role:${b.role}]\n${b.text}\n[/${b.role}]`)
       .join("\n\n");
 
-    // Auto-capture should primarily reflect user intent (avoid promoting our own quoted summaries).
-    // We still keep assistant text available in `captureMode=everything` via appendRemember.
     const joinedUserOnly = blocks
       .filter((b) => b.role === "user")
       .map((b) => `[role:${b.role}]\n${b.text}\n[/${b.role}]`)
       .join("\n\n");
 
+    // Filter: if user text is boilerplate spam, skip capture entirely.
+    const userTextFlat = (blocks.find((b) => b.role === "user")?.text || "").trim();
+    if (looksLikeBoilerplateSpam(userTextFlat)) return;
+
+    // Mark capture time only once we decide to write.
+    lastCaptureAtMsBySession.set(key, now);
+
     if (cfg.captureMode === "everything") {
-      // dump verbatim to daily log as a remember entry
       appendRemember(paths, joined);
       return;
     }
 
-    conservativeCapture(paths, joinedUserOnly || joined);
+    if (cfg.captureMode === "hybrid") {
+      // Durable, append-only raw transcript (jsonl)
+      appendRawTurn(paths, {
+        ts: new Date().toISOString(),
+        sessionKey: sessionKey || undefined,
+        channel: channel || undefined,
+        roleBlocks: blocks,
+      });
+
+      // Also do conservative capture into inbox
+      conservativeCapture(paths, joinedUserOnly || joined);
+    } else {
+      // conservative
+      conservativeCapture(paths, joinedUserOnly || joined);
+    }
 
     // Retention: prune inbox periodically (best-effort; never fails the turn)
     try {

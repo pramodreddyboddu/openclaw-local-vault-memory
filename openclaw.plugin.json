@@ -16,23 +16,29 @@
     },
     "autoCapture": {
       "label": "Auto-capture (opt-in)",
-      "help": "When enabled, captures high-signal memories locally after each successful turn (no cloud).",
+      "help": "When enabled, captures memories locally after each successful turn (no cloud).",
       "advanced": true
     },
     "captureMode": {
       "label": "Capture mode",
-      "help": "conservative = only decisions/commitments/preferences/lessons; everything = capture last turn verbatim to daily log.",
+      "help": "conservative = extract high-signal items to inbox. everything = dump last turn verbatim to daily log. hybrid = append raw turn transcript (jsonl) + conservative inbox capture.",
       "advanced": true
     },
     "autoPromote": {
       "label": "Auto-promote",
-      "help": "off (default) = stage only. safe = automatically promote only very high-confidence decisions+commitments to reduce inbox backlog.",
+      "help": "off (default) = stage only. safe = auto-write only very high-confidence decisions+commitments to curated files.",
+      "advanced": true
+    },
+    "captureCooldownSeconds": {
+      "label": "Capture cooldown (seconds)",
+      "placeholder": "30",
+      "help": "Rate limit auto-capture per session key; 0 disables rate limiting.",
       "advanced": true
     },
     "inboxRetentionDays": {
       "label": "Inbox retention (days)",
       "placeholder": "30",
-      "help": "How long to keep auto-captured staged entries in project_anchors/MEMORY_INBOX.md before pruning.",
+      "help": "How long to keep staged entries in project_anchors/MEMORY_INBOX.md before pruning.",
       "advanced": true
     },
     "debug": {
@@ -48,8 +54,9 @@
       "vaultRoot": { "type": "string" },
       "maxInjectChars": { "type": "number", "minimum": 500, "maximum": 20000 },
       "autoCapture": { "type": "boolean" },
-      "captureMode": { "type": "string", "enum": ["conservative", "everything"] },
+      "captureMode": { "type": "string", "enum": ["conservative", "everything", "hybrid"] },
       "autoPromote": { "type": "string", "enum": ["off", "safe"] },
+      "captureCooldownSeconds": { "type": "number", "minimum": 0, "maximum": 3600 },
       "debug": { "type": "boolean" },
       "inboxRetentionDays": { "type": "number", "minimum": 1, "maximum": 365 }
     },
