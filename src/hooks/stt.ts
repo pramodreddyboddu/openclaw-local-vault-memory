@@ -59,7 +59,8 @@ export function buildSttHandler(cfg: PluginConfig) {
     const transcript = cached
       ? cached
       : (() => {
-          const out = execFileSync(venvPy, [script, "--plain", audioPath], {
+          // Prefer English for Telugu/hinglish voice notes (more robust for our use).
+          const out = execFileSync(venvPy, [script, "--plain", "--lang", "en", audioPath], {
             encoding: "utf8",
             stdio: ["ignore", "pipe", "pipe"],
             timeout: 120_000,
