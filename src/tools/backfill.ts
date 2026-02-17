@@ -100,7 +100,7 @@ function collectLegacy(paths: ReturnType<typeof resolveVaultPaths>): BackfillIte
   return out;
 }
 
-const vaultRoot = argValue("--vault-root") ?? "/Users/pramod/clawd";
+const vaultRoot = argValue("--vault-root") ?? process.cwd();
 const apply = process.argv.includes("--apply");
 const paths = resolveVaultPaths(vaultRoot);
 const items = collectLegacy(paths);

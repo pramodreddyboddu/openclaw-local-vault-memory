@@ -1,5 +1,5 @@
 {
-  "name": "@pramod/local-vault-memory",
+  "name": "local-vault-memory",
   "version": "0.1.0",
   "type": "module",
   "description": "Local-first, filesystem-backed memory plugin for OpenClaw (no cloud, auditable markdown).",

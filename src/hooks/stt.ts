@@ -5,8 +5,8 @@ import path from "node:path";
 
 // Detect OpenClaw inbound media paths embedded in prompt text.
 // Example:
-// [media attached: /Users/pramod/.openclaw/media/inbound/file_77---....ogg (...)]
-const OGG_RE = /\/Users\/[^\s\]]+\/\.openclaw\/media\/inbound\/[^\s\]]+\.ogg/gi;
+// [media attached: /home/user/.openclaw/media/inbound/file_77---....ogg (...)]
+const OGG_RE = /\/(Users|home)\/[^\s\]]+\/\.openclaw\/media\/inbound\/[^\s\]]+\.ogg/gi;
 
 function uniq<T>(xs: T[]): T[] {
   return Array.from(new Set(xs));
@@ -39,7 +39,7 @@ function cacheKeyForFile(filePath: string): string {
 }
 
 export function buildSttHandler(cfg: PluginConfig) {
-  const workspace = cfg.vaultRoot || "/Users/pramod/clawd";
+  const workspace = cfg.vaultRoot || process.cwd();
   const cacheDir = path.join(workspace, "memory", "stt_cache");
   const venvPy = path.join(workspace, ".venv-stt310", "bin", "python");
   const script = path.join(workspace, "scripts", "transcribe_audio.py");

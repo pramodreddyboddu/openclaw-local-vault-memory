@@ -130,7 +130,7 @@ npm run build
 3) Configure the plugin (recommended trial config):
 ```json
 {
-  "vaultRoot": "/Users/pramod/clawd",
+  "vaultRoot": "/path/to/vault",
   "autoCapture": true,
   "captureMode": "conservative",
   "autoPromote": "safe",
@@ -141,7 +141,7 @@ npm run build
 
 ## Config
 
-- `vaultRoot` (default `/Users/pramod/clawd`)
+- `vaultRoot` (default `/path/to/vault`)
 - `maxInjectChars` (default `2500`)
 - `recallMaxHits` (default `7`) — max merged recall lines
 - `recallSearchMaxChars` (default `1800`) — char budget for merged recall lines
@@ -153,8 +153,8 @@ npm run build
 ### Maintenance hooks
 
 - Slash command: `/memory-clean` (dry-run), `/memory-clean apply` (apply cleanup)
-- Script: `npm run memory:cleanup -- --vault-root /Users/pramod/clawd [--apply]`
-- Backfill helper: `npm run memory:backfill -- --vault-root /Users/pramod/clawd` (dry-run) then add `--apply`
+- Script: `npm run memory:cleanup -- --vault-root /path/to/vault [--apply]`
+- Backfill helper: `npm run memory:backfill -- --vault-root /path/to/vault` (dry-run) then add `--apply`
 
 Backfill safety notes:
 - idempotent via stable entry markers (`<!-- backfill:... -->`)
@@ -169,7 +169,7 @@ Developer uninstall (today): remove/disable the plugin via your OpenClaw plugin 
 
 Data note:
 - Uninstalling the plugin **does not delete** your vault files by default (your markdown files remain on disk).
-- Captured data locations (default when vaultRoot is `/Users/pramod/clawd`):
+- Captured data locations (default when vaultRoot is `/path/to/vault`):
   - `memory/YYYY-MM-DD.md` (daily log)
   - `MEMORY.md` (curated long-term)
   - `project_anchors/MEMORY_INBOX.md` (staging)

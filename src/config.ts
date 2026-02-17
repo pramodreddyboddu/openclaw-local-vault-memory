@@ -1,8 +1,10 @@
 import { Type } from "@sinclair/typebox";
 
+const DEFAULT_VAULT_ROOT = process.env.LOCAL_VAULT_ROOT || process.cwd();
+
 export const configSchema = Type.Object(
   {
-    vaultRoot: Type.Optional(Type.String({ default: "/Users/pramod/clawd" })),
+    vaultRoot: Type.Optional(Type.String({ default: DEFAULT_VAULT_ROOT })),
     maxInjectChars: Type.Optional(Type.Number({ default: 2500, minimum: 500, maximum: 20000 })),
 
     // Tiered recall search controls.
@@ -92,7 +94,7 @@ export function parseConfig(raw: unknown): PluginConfig {
     : 524288;
 
   return {
-    vaultRoot: typeof obj.vaultRoot === "string" ? obj.vaultRoot : "/Users/pramod/clawd",
+    vaultRoot: typeof obj.vaultRoot === "string" ? obj.vaultRoot : DEFAULT_VAULT_ROOT,
     maxInjectChars: typeof obj.maxInjectChars === "number" ? obj.maxInjectChars : 2500,
     recallMaxHits,
     recallSearchMaxChars,

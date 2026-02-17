@@ -10,7 +10,7 @@ function argValue(name: string): string | null {
 }
 
 const apply = process.argv.includes("--apply");
-const vaultRoot = argValue("--vault-root") ?? "/Users/pramod/clawd";
+const vaultRoot = argValue("--vault-root") ?? process.cwd();
 const cfg = parseConfig({
   vaultRoot,
   contextRetentionDays: Number(argValue("--days") || "30"),

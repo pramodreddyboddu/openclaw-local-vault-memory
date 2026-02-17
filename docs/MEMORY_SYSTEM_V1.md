@@ -41,7 +41,7 @@ A local-first memory system for OpenClaw that is **traceable, tiered, and audita
 
 ### Steps
 ```bash
-cd /Users/pramod/clawd/openclaw-local-vault-memory
+cd /path/to/vault/openclaw-local-vault-memory
 npm i
 npm run build
 ```
@@ -50,7 +50,7 @@ Install with your OpenClaw plugin flow, then configure:
 
 ```json
 {
-  "vaultRoot": "/Users/pramod/clawd",
+  "vaultRoot": "/path/to/vault",
   "autoCapture": true,
   "captureMode": "conservative",
   "autoPromote": "safe",
@@ -79,10 +79,10 @@ Install with your OpenClaw plugin flow, then configure:
 
 CLI helpers:
 ```bash
-npm run memory:cleanup -- --vault-root /Users/pramod/clawd
-npm run memory:cleanup -- --vault-root /Users/pramod/clawd --apply
-npm run memory:backfill -- --vault-root /Users/pramod/clawd
-npm run memory:backfill -- --vault-root /Users/pramod/clawd --apply
+npm run memory:cleanup -- --vault-root /path/to/vault
+npm run memory:cleanup -- --vault-root /path/to/vault --apply
+npm run memory:backfill -- --vault-root /path/to/vault
+npm run memory:backfill -- --vault-root /path/to/vault --apply
 ```
 
 ---

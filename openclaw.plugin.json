@@ -4,7 +4,7 @@
   "uiHints": {
     "vaultRoot": {
       "label": "Vault root (directory)",
-      "placeholder": "/Users/pramod/clawd",
+      "placeholder": "/path/to/vault",
       "help": "Directory containing MEMORY.md, memory/, project_anchors/.",
       "advanced": true
     },
