@@ -145,7 +145,7 @@ function maybeAutoPromoteSafe(paths: VaultPaths) {
   const recent = listInbox(paths, 15);
   for (const e of recent) {
     if (!shouldAutoPromoteSafe(e)) continue;
-    promoteInboxEntry(paths, e);
+    promoteInboxEntry(paths, e, { who: "auto:safe", why: "safe-autopromote" });
   }
 }
 

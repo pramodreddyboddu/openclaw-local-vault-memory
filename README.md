@@ -38,14 +38,33 @@ Default behavior is **conservative**: decisions/commitments/preferences/lessons 
   - Preferences/lessons remain pending by default.
 
 ### Manual recall
-- `/recall <query>` searches across:
-  - `WORKING_SET.md`, `VAULT_INDEX.md`, `MEMORY.md`
-  - last ~7 daily logs
-  - all `project_anchors/*.md`
+- `/recall <query>` searches with deterministic merge priority:
+  1. `context/memory/user/*.md`
+  2. `context/memory/fact/*.md`
+  3. `context/memory/episodic/*.md`
+  4. legacy sources (backward-compatible):
+     - `WORKING_SET.md`, `VAULT_INDEX.md`, `MEMORY.md`
+     - last ~7 daily logs
+     - all `project_anchors/*.md`
+- Dedupe rule: normalized line text (case/whitespace-insensitive), first-hit wins by the above priority.
+- Token budget rule: search stops once either `recallMaxHits` or `recallSearchMaxChars` is reached.
 
 ### Inbox + promotion
 - `/inbox [n]` lists recent staged memories
 - `/promote <id>` promotes one staged memory into long-term files
+- Every promotion writes an append-only audit row to:
+  - `context/memory/promotion_ledger.jsonl`
+- Ledger schema (validated before write):
+  - `who` (actor, e.g. `manual:/promote`, `auto:safe`)
+  - `when` (stage name; currently `promotion`)
+  - `why` (reason string)
+  - `source` (`inboxId`, `type`, `file`, `snippet`)
+  - `target` (`kind`, `file`, optional `ref`)
+- Traceability guarantee: each ledger row links source inbox snippet + id to destination file/ref.
+- Safety checks:
+  - append-only writes (no in-place edits to ledger)
+  - schema validation rejects malformed rows
+  - manual promotion still requires explicit `/promote <id>` action
 
 ### Commitments (shadow follow-ups)
 - `/commitments` lists open commitments
@@ -97,6 +116,8 @@ npm run build
 
 - `vaultRoot` (default `/Users/pramod/clawd`)
 - `maxInjectChars` (default `2500`)
+- `recallMaxHits` (default `7`) — max merged recall lines
+- `recallSearchMaxChars` (default `1800`) — char budget for merged recall lines
 - `debug` (default `false`)
 
 ## Uninstall / Disable

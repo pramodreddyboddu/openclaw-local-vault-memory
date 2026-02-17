@@ -75,7 +75,7 @@ export function buildRecallHandler(cfg: PluginConfig) {
     if (deep) loaded.push({ path: paths.vaultIndex, reasons: ["relevance", "recency"] });
     else skipped.push({ path: paths.vaultIndex, reasons: ["token_budget"] });
 
-    const hits = deep ? simpleSearch(paths, prompt, 7) : [];
+    const hits = deep ? simpleSearch(paths, prompt, cfg.recallMaxHits, cfg.recallSearchMaxChars) : [];
     if (deep) {
       loaded.push({ path: paths.memoryMd, reasons: ["relevance", "recency"] });
       for (const f of recentDaily) loaded.push({ path: f, reasons: ["relevance", "recency"] });
@@ -92,7 +92,7 @@ export function buildRecallHandler(cfg: PluginConfig) {
     if (hits.length)
       sections.push(
         "## Recall Matches\n" +
-          hits.map((h) => `- ${h.text}\n  (${h.file}:${h.line})`).join("\n"),
+          hits.map((h) => `- ${h.text}\n  (${h.source} | ${h.file}:${h.line})`).join("\n"),
       );
 
     const body = sections.join("\n\n").trim();

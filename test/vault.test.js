@@ -17,6 +17,8 @@ import { redactSecrets } from "../dist/lib/redact.js";
 import { appendInbox, listInbox, markInboxPromoted } from "../dist/lib/inbox.js";
 import { addCommitment, listCommitments, markCommitmentDone } from "../dist/lib/commitments.js";
 import { emitContextManifest } from "../dist/lib/contextManifest.js";
+import { promoteInboxEntry } from "../dist/lib/promote.js";
+import { appendPromotionLedger, validatePromotionLedgerRecord } from "../dist/lib/promotionLedger.js";
 
 function mkVault() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "vault-"));
@@ -50,6 +52,39 @@ test("simpleSearch finds matches across core files", () => {
   appendRemember(paths, "alpha beta");
   const hits = simpleSearch(paths, "alpha", 5);
   assert.ok(hits.length >= 1);
+});
+
+test("tiered search priority + dedupe prefers user > fact > episodic > legacy", () => {
+  const root = mkVault();
+  const paths = resolveVaultPaths(root);
+
+  fs.mkdirSync(paths.memoryTierUserDir, { recursive: true });
+  fs.mkdirSync(paths.memoryTierFactDir, { recursive: true });
+  fs.mkdirSync(paths.memoryTierEpisodicDir, { recursive: true });
+
+  fs.writeFileSync(path.join(paths.memoryTierEpisodicDir, "e.md"), "same line about chrome operator\n", "utf8");
+  fs.writeFileSync(path.join(paths.memoryTierFactDir, "f.md"), "same line about chrome operator\n", "utf8");
+  fs.writeFileSync(path.join(paths.memoryTierUserDir, "u.md"), "same line about chrome operator\n", "utf8");
+  fs.writeFileSync(paths.memoryMd, "same line about chrome operator\n", "utf8");
+
+  const hits = simpleSearch(paths, "chrome operator", 10, 500);
+  assert.equal(hits.length, 1);
+  assert.equal(hits[0].source, "tier:user");
+});
+
+test("simpleSearch respects search token budget via maxChars", () => {
+  const root = mkVault();
+  const paths = resolveVaultPaths(root);
+
+  fs.mkdirSync(paths.memoryTierUserDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(paths.memoryTierUserDir, "budget.md"),
+    "budget-key " + "x".repeat(90) + "\n" + "budget-key " + "y".repeat(90) + "\n",
+    "utf8"
+  );
+
+  const hits = simpleSearch(paths, "budget-key", 10, 120);
+  assert.equal(hits.length, 1);
 });
 
 test("appendDecision creates DECISIONS.md and returns id", () => {
@@ -131,4 +166,41 @@ test("emitContextManifest writes daily jsonl with loaded/skipped context", () =>
   assert.ok(Array.isArray(obj.contextFilesSkipped));
   assert.equal(obj.contextFilesLoaded[0].path, paths.workingSet);
   assert.equal(obj.contextFilesSkipped[0].path, paths.vaultIndex);
+});
+
+test("promotion ledger append + schema validation", () => {
+  const root = mkVault();
+  const paths = resolveVaultPaths(root);
+
+  const entry = appendInbox(paths, "decision", "Decision: keep deterministic adapters");
+  const res = promoteInboxEntry(paths, entry, { who: "manual:/promote", why: "test" });
+  assert.equal(res.ok, true);
+
+  const lines = fs.readFileSync(paths.promotionLedgerJsonl, "utf8").trim().split(/\r?\n/);
+  const row = JSON.parse(lines.at(-1));
+
+  assert.equal(validatePromotionLedgerRecord(row), true);
+  assert.equal(row.source.inboxId, entry.id);
+  assert.ok(row.target.file.includes("DECISIONS.md"));
+  assert.ok(row.source.snippet.includes("deterministic adapters"));
+});
+
+test("promotion ledger validator rejects malformed record", () => {
+  const bad = {
+    at: "",
+    who: "manual:/promote",
+    when: "promotion",
+    why: "missing source fields",
+    source: { inboxId: "M-1" },
+    target: { kind: "decision", file: "x.md" },
+  };
+  assert.equal(validatePromotionLedgerRecord(bad), false);
+});
+
+test("appendPromotionLedger throws on invalid schema", () => {
+  const root = mkVault();
+  const paths = resolveVaultPaths(root);
+  assert.throws(() => {
+    appendPromotionLedger(paths, /** @type {any} */ ({ foo: "bar" }));
+  });
 });

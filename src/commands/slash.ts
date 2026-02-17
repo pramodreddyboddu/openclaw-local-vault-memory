@@ -98,9 +98,9 @@ export function registerSlashCommands(api: OpenClawPluginApi, cfg: PluginConfig)
     handler: async (ctx: any) => {
       const q = String(ctx?.text ?? ctx?.args?.text ?? "").trim();
       if (!q) return { text: "Usage: /recall <query>" };
-      const hits = simpleSearch(paths, q, 7);
+      const hits = simpleSearch(paths, q, cfg.recallMaxHits, cfg.recallSearchMaxChars);
       if (hits.length === 0) return { text: "No matches." };
-      const lines = hits.map((h) => `- ${h.text}\n  (${h.file}:${h.line})`);
+      const lines = hits.map((h) => `- ${h.text}\n  (${h.source} | ${h.file}:${h.line})`);
       return { text: `Matches for: ${q}\n\n${lines.join("\n")}` };
     },
   });
@@ -146,7 +146,7 @@ export function registerSlashCommands(api: OpenClawPluginApi, cfg: PluginConfig)
       if (!entry) return { text: `Not found in inbox: ${id}` };
       if (entry.status === "promoted") return { text: `Already promoted: ${id}` };
 
-      const res = promoteInboxEntry(paths, entry);
+      const res = promoteInboxEntry(paths, entry, { who: "manual:/promote", why: "user-approved-manual-promotion" });
       return { text: res.message };
     },
   });

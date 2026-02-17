@@ -12,11 +12,18 @@ export type VaultPaths = {
   anchorsDir: string;
   inboxMd: string;
   commitmentsMd: string;
+  memoryTierDir: string;
+  memoryTierFactDir: string;
+  memoryTierEpisodicDir: string;
+  memoryTierUserDir: string;
+  promotionLedgerJsonl: string;
 };
 
 export function resolveVaultPaths(vaultRoot: string): VaultPaths {
   const root = vaultRoot;
   const anchorsDir = path.join(root, "project_anchors");
+  const memoryTierDir = path.join(root, "context", "memory");
+
   return {
     root,
     workingSet: path.join(anchorsDir, "WORKING_SET.md"),
@@ -27,6 +34,11 @@ export function resolveVaultPaths(vaultRoot: string): VaultPaths {
     anchorsDir,
     inboxMd: path.join(anchorsDir, "MEMORY_INBOX.md"),
     commitmentsMd: path.join(anchorsDir, "COMMITMENTS.md"),
+    memoryTierDir,
+    memoryTierFactDir: path.join(memoryTierDir, "fact"),
+    memoryTierEpisodicDir: path.join(memoryTierDir, "episodic"),
+    memoryTierUserDir: path.join(memoryTierDir, "user"),
+    promotionLedgerJsonl: path.join(memoryTierDir, "promotion_ledger.jsonl"),
   };
 }
 
@@ -87,7 +99,6 @@ export function buildVaultIndexSnippet(paths: VaultPaths, maxBytes = 8_000): str
   const vi = safeRead(paths.vaultIndex, maxBytes);
   if (!vi) return "";
 
-  // Keep it small: first ~50 non-empty lines.
   const lines = vi
     .split(/\r?\n/)
     .map((l) => l.trimEnd())
@@ -97,19 +108,48 @@ export function buildVaultIndexSnippet(paths: VaultPaths, maxBytes = 8_000): str
   return lines.join("\n").trim();
 }
 
-export type RecallHit = { file: string; line: number; text: string };
+export type RecallHit = {
+  file: string;
+  line: number;
+  text: string;
+  source: "tier:user" | "tier:fact" | "tier:episodic" | "legacy";
+};
 
-export function simpleSearch(paths: VaultPaths, query: string, maxHits = 7): RecallHit[] {
-  const q = query.trim().toLowerCase();
-  if (q.length < 2) return [];
+const TIER_PRIORITY: Array<{ source: RecallHit["source"]; dirName?: "user" | "fact" | "episodic" }> = [
+  { source: "tier:user", dirName: "user" },
+  { source: "tier:fact", dirName: "fact" },
+  { source: "tier:episodic", dirName: "episodic" },
+  { source: "legacy" },
+];
 
-  const hits: RecallHit[] = [];
+function listTierMarkdownFiles(paths: VaultPaths): Array<{ source: RecallHit["source"]; file: string }> {
+  const dirs: Array<{ dir: string; source: RecallHit["source"] }> = [
+    { dir: paths.memoryTierUserDir, source: "tier:user" },
+    { dir: paths.memoryTierFactDir, source: "tier:fact" },
+    { dir: paths.memoryTierEpisodicDir, source: "tier:episodic" },
+  ];
+
+  const out: Array<{ source: RecallHit["source"]; file: string }> = [];
+  for (const d of dirs) {
+    try {
+      const files = fs
+        .readdirSync(d.dir)
+        .filter((f) => f.endsWith(".md"))
+        .sort()
+        .map((f) => path.join(d.dir, f));
+      for (const f of files) out.push({ source: d.source, file: f });
+    } catch {
+      // missing tier dir is fine (backward compatibility)
+    }
+  }
+  return out;
+}
+
+function listLegacySearchFiles(paths: VaultPaths): string[] {
   const searchFiles: string[] = [];
 
-  // Core files
   [paths.workingSet, paths.vaultIndex, paths.memoryMd].forEach((f) => searchFiles.push(f));
 
-  // Recent daily files (best-effort): last 7 by name sort
   try {
     const files = fs
       .readdirSync(paths.dailyDir)
@@ -122,7 +162,6 @@ export function simpleSearch(paths: VaultPaths, query: string, maxHits = 7): Rec
     // ignore
   }
 
-  // Anchors (small-ish)
   try {
     const files = fs
       .readdirSync(paths.anchorsDir)
@@ -134,18 +173,57 @@ export function simpleSearch(paths: VaultPaths, query: string, maxHits = 7): Rec
     // ignore
   }
 
-  for (const file of searchFiles) {
-    if (hits.length >= maxHits) break;
-    const content = safeRead(file, 120_000);
+  return searchFiles;
+}
+
+function normForDedupe(s: string): string {
+  return s.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+export function simpleSearch(paths: VaultPaths, query: string, maxHits = 7, maxChars = 1800): RecallHit[] {
+  const q = query.trim().toLowerCase();
+  if (q.length < 2) return [];
+
+  const tierFiles = listTierMarkdownFiles(paths);
+  const legacyFiles = listLegacySearchFiles(paths).map((file) => ({ source: "legacy" as const, file }));
+
+  const orderedFiles: Array<{ source: RecallHit["source"]; file: string }> = [];
+  for (const p of TIER_PRIORITY) {
+    if (p.source === "legacy") {
+      orderedFiles.push(...legacyFiles);
+      continue;
+    }
+    orderedFiles.push(...tierFiles.filter((x) => x.source === p.source));
+  }
+
+  const hits: RecallHit[] = [];
+  const seen = new Set<string>();
+  let usedChars = 0;
+
+  for (const item of orderedFiles) {
+    if (hits.length >= maxHits || usedChars >= maxChars) break;
+    const content = safeRead(item.file, 120_000);
     if (!content) continue;
 
     const lines = content.split(/\r?\n/);
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i] ?? "";
-      if (line.toLowerCase().includes(q)) {
-        hits.push({ file, line: i + 1, text: line.trim() });
-        if (hits.length >= maxHits) break;
-      }
+      if (!line.toLowerCase().includes(q)) continue;
+
+      const text = line.trim();
+      if (!text) continue;
+
+      const key = normForDedupe(text);
+      if (seen.has(key)) continue;
+
+      const projected = usedChars + text.length;
+      if (projected > maxChars) break;
+
+      seen.add(key);
+      hits.push({ file: item.file, line: i + 1, text, source: item.source });
+      usedChars = projected;
+
+      if (hits.length >= maxHits || usedChars >= maxChars) break;
     }
   }
 
@@ -187,7 +265,6 @@ export function appendRawTurn(paths: VaultPaths, rec: RawTurnRecord): { file: st
   fs.mkdirSync(paths.rawDir, { recursive: true });
   const file = todayRawFile(paths);
 
-  // redact secrets in text blocks
   const safe: RawTurnRecord = {
     ...rec,
     roleBlocks: (rec.roleBlocks || []).map((b) => ({
@@ -201,9 +278,6 @@ export function appendRawTurn(paths: VaultPaths, rec: RawTurnRecord): { file: st
 }
 
 function appendUnderHeading(filePath: string, heading: string, bullet: string) {
-  // NOTE: We keep this *append-only* to avoid accidental overwrites.
-  // If the file/heading doesn't exist yet, we create/append the minimum necessary.
-
   let md = "";
   let exists = true;
   try {
@@ -222,13 +296,11 @@ function appendUnderHeading(filePath: string, heading: string, bullet: string) {
     return;
   }
 
-  // If heading already present, just append the bullet.
   if (md.includes(heading)) {
     fs.appendFileSync(filePath, entry, "utf8");
     return;
   }
 
-  // Heading missing: append it + the bullet.
   const suffix = `\n\n${heading}\n${entry}`;
   fs.appendFileSync(filePath, suffix, "utf8");
 }
