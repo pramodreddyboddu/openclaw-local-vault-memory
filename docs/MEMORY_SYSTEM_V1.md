@@ -2,6 +2,14 @@
 
 A local-first memory system for OpenClaw that is **traceable, tiered, and auditable**.
 
+## What improves when you use this
+
+- **Less context loss across sessions** (important decisions are easier to recover).
+- **Faster recall during active work** (deterministic tiered search, fewer random misses).
+- **Better trust in memory behavior** (you can see what was loaded/skipped and why).
+- **Auditable long-term updates** (promotion ledger gives source → target trace).
+- **Cleaner operations over time** (retention + cleanup tools prevent silent sprawl).
+
 ## What you get
 
 1. **Durable memory capture**

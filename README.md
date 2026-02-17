@@ -14,6 +14,13 @@ Local-first, filesystem-backed memory for OpenClaw.
 - No API keys.
 - Auditable markdown files.
 
+## Why this helps (practical outcomes)
+
+- Reduce context drift between sessions
+- Recall key decisions faster
+- Keep memory behavior auditable (with receipts)
+- Maintain memory files safely over time
+
 ## Quickstart
 
 ```bash
