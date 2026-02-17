@@ -2,6 +2,8 @@
 
 Local-first, filesystem-backed memory for OpenClaw.
 
+**Publish doc:** `docs/MEMORY_SYSTEM_V1.md` (install, outcomes, commands, safety, limits)
+
 - No cloud.
 - No API keys.
 - Auditable markdown files.
