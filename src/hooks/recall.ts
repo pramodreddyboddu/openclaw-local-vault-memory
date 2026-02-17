@@ -5,6 +5,7 @@ import {
   resolveVaultPaths,
   simpleSearch,
 } from "../lib/fsVault.js";
+import { buildSearchCandidates, emitContextManifest, type ManifestFileDecision } from "../lib/contextManifest.js";
 
 const TRIGGERS = [
   "remember",
@@ -35,18 +36,55 @@ export function buildRecallHandler(cfg: PluginConfig) {
     const prompt = typeof event.prompt === "string" ? event.prompt : "";
     if (prompt.trim().length < 2) return;
 
-    // Quiet by default.
-    if (!shouldInject(prompt)) return;
+    const sessionKey = String((event as any).sessionKey || (event as any).session?.key || "").trim();
+    const triggerMatched = shouldInject(prompt);
 
     // Only do broader search on explicit trigger words.
     const pLower = prompt.toLowerCase();
-    const deep = TRIGGERS.some((t) => pLower.includes(t));
+    const deep = triggerMatched && TRIGGERS.some((t) => pLower.includes(t));
+
+    const { recentDaily, anchors } = buildSearchCandidates(paths);
+    const loaded: ManifestFileDecision[] = [];
+    const skipped: ManifestFileDecision[] = [];
+
+    // Quiet by default for recall injection, but still emit traceability manifest.
+    if (!triggerMatched) {
+      skipped.push({ path: paths.workingSet, reasons: ["relevance", "token_budget"] });
+      skipped.push({ path: paths.vaultIndex, reasons: ["relevance", "token_budget"] });
+      skipped.push({ path: paths.memoryMd, reasons: ["relevance", "token_budget"] });
+      for (const f of recentDaily) skipped.push({ path: f, reasons: ["relevance", "token_budget"] });
+      for (const f of anchors) skipped.push({ path: f, reasons: ["relevance", "token_budget"] });
+
+      emitContextManifest(paths, {
+        sessionKey,
+        loaded,
+        skipped,
+        deepRecall: false,
+        triggerMatched: false,
+        maxInjectChars: cfg.maxInjectChars,
+      });
+      return;
+    }
 
     // Token discipline: for "project keyword" continuity injections, keep it small.
     // Vault Index + full-text search only on explicit recall-style prompts.
     const wsSummary = buildWorkingSetSummary(paths, 5);
+    loaded.push({ path: paths.workingSet, reasons: ["relevance", "recency"] });
+
     const viSnippet = deep ? buildVaultIndexSnippet(paths, 8_000) : "";
+    if (deep) loaded.push({ path: paths.vaultIndex, reasons: ["relevance", "recency"] });
+    else skipped.push({ path: paths.vaultIndex, reasons: ["token_budget"] });
+
     const hits = deep ? simpleSearch(paths, prompt, 7) : [];
+    if (deep) {
+      loaded.push({ path: paths.memoryMd, reasons: ["relevance", "recency"] });
+      for (const f of recentDaily) loaded.push({ path: f, reasons: ["relevance", "recency"] });
+      for (const f of anchors) loaded.push({ path: f, reasons: ["relevance", "recency"] });
+    } else {
+      skipped.push({ path: paths.memoryMd, reasons: ["token_budget"] });
+      for (const f of recentDaily) skipped.push({ path: f, reasons: ["token_budget"] });
+      for (const f of anchors) skipped.push({ path: f, reasons: ["token_budget"] });
+    }
 
     const sections: string[] = [];
     if (wsSummary) sections.push(wsSummary);
@@ -58,6 +96,16 @@ export function buildRecallHandler(cfg: PluginConfig) {
       );
 
     const body = sections.join("\n\n").trim();
+
+    emitContextManifest(paths, {
+      sessionKey,
+      loaded,
+      skipped,
+      deepRecall: deep,
+      triggerMatched: true,
+      maxInjectChars: cfg.maxInjectChars,
+    });
+
     if (!body) return;
 
     const header =

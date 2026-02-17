@@ -16,6 +16,7 @@ import {
 import { redactSecrets } from "../dist/lib/redact.js";
 import { appendInbox, listInbox, markInboxPromoted } from "../dist/lib/inbox.js";
 import { addCommitment, listCommitments, markCommitmentDone } from "../dist/lib/commitments.js";
+import { emitContextManifest } from "../dist/lib/contextManifest.js";
 
 function mkVault() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "vault-"));
@@ -107,4 +108,27 @@ test("commitments ledger add + list + done", () => {
   assert.equal(ok, true);
   const stillOpen = listCommitments(paths, "open", 50);
   assert.ok(!stillOpen.some((x) => x.id === c.id));
+});
+
+test("emitContextManifest writes daily jsonl with loaded/skipped context", () => {
+  const root = mkVault();
+  const paths = resolveVaultPaths(root);
+
+  const { file } = emitContextManifest(paths, {
+    sessionKey: "session-1",
+    loaded: [{ path: paths.workingSet, reasons: ["relevance", "recency"] }],
+    skipped: [{ path: paths.vaultIndex, reasons: ["token_budget"] }],
+    deepRecall: false,
+    triggerMatched: true,
+    maxInjectChars: 2500,
+  });
+
+  const lines = fs.readFileSync(file, "utf8").trim().split(/\r?\n/);
+  const obj = JSON.parse(lines.at(-1));
+
+  assert.equal(obj.sessionKey, "session-1");
+  assert.ok(Array.isArray(obj.contextFilesLoaded));
+  assert.ok(Array.isArray(obj.contextFilesSkipped));
+  assert.equal(obj.contextFilesLoaded[0].path, paths.workingSet);
+  assert.equal(obj.contextFilesSkipped[0].path, paths.vaultIndex);
 });
