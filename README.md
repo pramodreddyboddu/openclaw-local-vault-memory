@@ -119,6 +119,20 @@ npm run build
 - `recallMaxHits` (default `7`) — max merged recall lines
 - `recallSearchMaxChars` (default `1800`) — char budget for merged recall lines
 - `debug` (default `false`)
+- `contextRetentionDays` (default `30`) — retention window for context manifests + promotion ledger rows
+- `manifestMaxFiles` (default `60`) — hard cap for `context/manifests/*.jsonl` (current day always preserved)
+- `promotionLedgerMaxBytes` (default `524288`) — size cap target for `context/memory/promotion_ledger.jsonl` (current day rows always preserved)
+
+### Maintenance hooks
+
+- Slash command: `/memory-clean` (dry-run), `/memory-clean apply` (apply cleanup)
+- Script: `npm run memory:cleanup -- --vault-root /Users/pramod/clawd [--apply]`
+- Backfill helper: `npm run memory:backfill -- --vault-root /Users/pramod/clawd` (dry-run) then add `--apply`
+
+Backfill safety notes:
+- idempotent via stable entry markers (`<!-- backfill:... -->`)
+- no deletions are performed
+- review dry-run output before apply
 
 ## Uninstall / Disable
 

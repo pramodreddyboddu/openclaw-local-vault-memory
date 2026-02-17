@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
+import { execFileSync } from "node:child_process";
 
 import {
   resolveVaultPaths,
@@ -19,6 +20,7 @@ import { addCommitment, listCommitments, markCommitmentDone } from "../dist/lib/
 import { emitContextManifest } from "../dist/lib/contextManifest.js";
 import { promoteInboxEntry } from "../dist/lib/promote.js";
 import { appendPromotionLedger, validatePromotionLedgerRecord } from "../dist/lib/promotionLedger.js";
+import { cleanupContextRetention } from "../dist/lib/retention.js";
 
 function mkVault() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "vault-"));
@@ -85,6 +87,22 @@ test("simpleSearch respects search token budget via maxChars", () => {
 
   const hits = simpleSearch(paths, "budget-key", 10, 120);
   assert.equal(hits.length, 1);
+});
+
+test("simpleSearch returns multi-line chunk when adjacent lines are relevant", () => {
+  const root = mkVault();
+  const paths = resolveVaultPaths(root);
+  fs.mkdirSync(paths.memoryTierFactDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(paths.memoryTierFactDir, "chunk.md"),
+    "Chrome Operator roadmap\nDecision: deterministic selector adapters for linkedin\nThis improved replay stability\n",
+    "utf8",
+  );
+
+  const hits = simpleSearch(paths, "deterministic selector adapters", 5, 600);
+  assert.ok(hits.length >= 1);
+  assert.ok(hits[0].text.includes("Chrome Operator roadmap"));
+  assert.ok(hits[0].text.includes("replay stability"));
 });
 
 test("appendDecision creates DECISIONS.md and returns id", () => {
@@ -203,4 +221,54 @@ test("appendPromotionLedger throws on invalid schema", () => {
   assert.throws(() => {
     appendPromotionLedger(paths, /** @type {any} */ ({ foo: "bar" }));
   });
+});
+
+test("cleanup retention keeps current day and prunes old manifests + ledger rows", () => {
+  const root = mkVault();
+  const paths = resolveVaultPaths(root);
+  const manifestDir = path.join(root, "context", "manifests");
+  fs.mkdirSync(manifestDir, { recursive: true });
+
+  fs.writeFileSync(path.join(manifestDir, "2020-01-01.jsonl"), "{}\n", "utf8");
+  const today = new Date().toISOString().slice(0, 10);
+  fs.writeFileSync(path.join(manifestDir, `${today}.jsonl`), "{}\n", "utf8");
+
+  fs.mkdirSync(path.dirname(paths.promotionLedgerJsonl), { recursive: true });
+  fs.writeFileSync(
+    paths.promotionLedgerJsonl,
+    JSON.stringify({ at: "2020-01-01T00:00:00.000Z", who: "x", when: "promotion", why: "old", source: { inboxId: "M-1", type: "decision", file: "a", snippet: "a" }, target: { kind: "decision", file: "b" } }) + "\n" +
+      JSON.stringify({ at: `${today}T00:00:00.000Z`, who: "x", when: "promotion", why: "today", source: { inboxId: "M-2", type: "decision", file: "a", snippet: "b" }, target: { kind: "decision", file: "b" } }) + "\n",
+    "utf8",
+  );
+
+  const res = cleanupContextRetention(paths, { retentionDays: 30, manifestMaxFiles: 60, promotionLedgerMaxBytes: 200000 }, false);
+  assert.equal(res.manifests.deleted, 1);
+  assert.ok(fs.existsSync(path.join(manifestDir, `${today}.jsonl`)));
+
+  const ledger = fs.readFileSync(paths.promotionLedgerJsonl, "utf8");
+  assert.ok(!ledger.includes("2020-01-01"));
+  assert.ok(ledger.includes(today));
+});
+
+test("backfill tool supports dry-run and apply idempotently", () => {
+  const root = mkVault();
+  const paths = resolveVaultPaths(root);
+  fs.writeFileSync(paths.memoryMd, "# MEMORY\n\n## 🎛 Preferences\n- prefers concise updates\n\n## 📚 Lessons\n- avoid flaky selectors\n", "utf8");
+  fs.writeFileSync(path.join(paths.dailyDir, "2026-02-15.md"), "- shipped local vault phase\n", "utf8");
+
+  const distBackfill = path.join(process.cwd(), "dist", "tools", "backfill.js");
+
+  const dry = JSON.parse(execFileSync(process.execPath, [distBackfill, "--vault-root", root], { encoding: "utf8" }));
+  assert.equal(dry.dryRun, true);
+  assert.ok(dry.scannedItems >= 2);
+
+  const app = JSON.parse(execFileSync(process.execPath, [distBackfill, "--vault-root", root, "--apply"], { encoding: "utf8" }));
+  assert.equal(app.apply, true);
+
+  const userOut = fs.readFileSync(path.join(paths.memoryTierUserDir, "backfill_legacy.md"), "utf8");
+  assert.ok(userOut.includes("prefers concise updates"));
+
+  const app2 = JSON.parse(execFileSync(process.execPath, [distBackfill, "--vault-root", root, "--apply"], { encoding: "utf8" }));
+  const changedAgain = app2.files.reduce((n, f) => n + f.added, 0);
+  assert.equal(changedAgain, 0);
 });

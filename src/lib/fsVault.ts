@@ -180,9 +180,48 @@ function normForDedupe(s: string): string {
   return s.toLowerCase().replace(/\s+/g, " ").trim();
 }
 
+function queryTokens(query: string): string[] {
+  return Array.from(
+    new Set(
+      query
+        .toLowerCase()
+        .split(/[^a-z0-9]+/)
+        .map((t) => t.trim())
+        .filter((t) => t.length >= 3),
+    ),
+  );
+}
+
+type ChunkCandidate = {
+  line: number;
+  text: string;
+  score: number;
+};
+
+function buildChunk(lines: string[], idx: number): string {
+  const out: string[] = [];
+  for (let i = Math.max(0, idx - 1); i <= Math.min(lines.length - 1, idx + 1); i++) {
+    const t = (lines[i] || "").trim();
+    if (!t) continue;
+    if (/^#{1,6}\s+/.test(t)) continue;
+    out.push(t);
+  }
+  return out.join(" ").replace(/\s+/g, " ").trim();
+}
+
+function scoreCandidate(text: string, q: string, tokens: string[]): number {
+  const lower = text.toLowerCase();
+  let score = lower.includes(q) ? 10 : 0;
+  for (const tok of tokens) {
+    if (lower.includes(tok)) score += 2;
+  }
+  return score;
+}
+
 export function simpleSearch(paths: VaultPaths, query: string, maxHits = 7, maxChars = 1800): RecallHit[] {
   const q = query.trim().toLowerCase();
   if (q.length < 2) return [];
+  const tokens = queryTokens(q);
 
   const tierFiles = listTierMarkdownFiles(paths);
   const legacyFiles = listLegacySearchFiles(paths).map((file) => ({ source: "legacy" as const, file }));
@@ -206,21 +245,33 @@ export function simpleSearch(paths: VaultPaths, query: string, maxHits = 7, maxC
     if (!content) continue;
 
     const lines = content.split(/\r?\n/);
+    const candidates: ChunkCandidate[] = [];
+
     for (let i = 0; i < lines.length; i++) {
-      const line = lines[i] ?? "";
-      if (!line.toLowerCase().includes(q)) continue;
+      const line = (lines[i] || "").toLowerCase();
+      const tokenHit = tokens.length > 0 && tokens.some((t) => line.includes(t));
+      if (!line.includes(q) && !tokenHit) continue;
 
-      const text = line.trim();
-      if (!text) continue;
+      const chunk = buildChunk(lines, i);
+      if (!chunk) continue;
+      const compact = chunk.length > 160 ? (lines[i] || "").trim() : chunk;
+      if (!compact) continue;
+      const score = scoreCandidate(compact, q, tokens);
+      if (score <= 0) continue;
+      candidates.push({ line: i + 1, text: compact, score });
+    }
 
-      const key = normForDedupe(text);
+    candidates.sort((a, b) => (b.score - a.score) || (a.line - b.line));
+
+    for (const c of candidates) {
+      const key = normForDedupe(c.text);
       if (seen.has(key)) continue;
 
-      const projected = usedChars + text.length;
-      if (projected > maxChars) break;
+      const projected = usedChars + c.text.length;
+      if (projected > maxChars) continue;
 
       seen.add(key);
-      hits.push({ file: item.file, line: i + 1, text, source: item.source });
+      hits.push({ file: item.file, line: c.line, text: c.text, source: item.source });
       usedChars = projected;
 
       if (hits.length >= maxHits || usedChars >= maxChars) break;

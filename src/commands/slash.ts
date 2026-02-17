@@ -4,6 +4,7 @@ import { appendRemember, resolveVaultPaths, simpleSearch } from "../lib/fsVault.
 import { getInboxById, listInbox } from "../lib/inbox.js";
 import { promoteInboxEntry } from "../lib/promote.js";
 import { listCommitments, markCommitmentDone } from "../lib/commitments.js";
+import { cleanupContextRetention } from "../lib/retention.js";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -163,6 +164,33 @@ export function registerSlashCommands(api: OpenClawPluginApi, cfg: PluginConfig)
         .join("\n");
       return {
         text: `Open commitments (${items.length})\n\n${lines}\n\nUse /done <id> to close one.`,
+      };
+    },
+  });
+
+  api.registerCommand({
+    name: "memory-clean",
+    description: "Prune old context manifests + promotion ledger (safe; keeps current-day records).",
+    handler: async (ctx: any) => {
+      const mode = String(ctx?.text ?? ctx?.args?.text ?? "").trim().toLowerCase();
+      const dryRun = mode !== "apply";
+      const res = cleanupContextRetention(
+        paths,
+        {
+          retentionDays: cfg.contextRetentionDays,
+          manifestMaxFiles: cfg.manifestMaxFiles,
+          promotionLedgerMaxBytes: cfg.promotionLedgerMaxBytes,
+        },
+        dryRun,
+      );
+
+      return {
+        text:
+          `${dryRun ? "Dry run" : "Applied"} memory cleanup\n` +
+          `- manifests: scanned=${res.manifests.scanned}, kept=${res.manifests.kept}, deleted=${res.manifests.deleted}\n` +
+          `- promotion_ledger: scanned=${res.promotionLedger.scanned}, kept=${res.promotionLedger.kept}, deleted=${res.promotionLedger.deleted}, bytes=${res.promotionLedger.bytesBefore ?? 0}->${res.promotionLedger.bytesAfter ?? 0}\n` +
+          `- safety: current-day manifest + ledger records are always preserved\n` +
+          `Usage: /memory-clean [apply]`,
       };
     },
   });

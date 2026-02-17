@@ -28,6 +28,10 @@ export const configSchema = Type.Object(
     debug: Type.Optional(Type.Boolean({ default: false })),
     inboxRetentionDays: Type.Optional(Type.Number({ default: 30, minimum: 1, maximum: 365 })),
     captureCooldownSeconds: Type.Optional(Type.Number({ default: 30, minimum: 0, maximum: 3600 })),
+
+    contextRetentionDays: Type.Optional(Type.Number({ default: 30, minimum: 1, maximum: 3650 })),
+    manifestMaxFiles: Type.Optional(Type.Number({ default: 60, minimum: 1, maximum: 5000 })),
+    promotionLedgerMaxBytes: Type.Optional(Type.Number({ default: 524288, minimum: 1024, maximum: 104857600 })),
   },
   { additionalProperties: false }
 );
@@ -43,6 +47,9 @@ export type PluginConfig = {
   debug: boolean;
   inboxRetentionDays: number;
   captureCooldownSeconds: number;
+  contextRetentionDays: number;
+  manifestMaxFiles: number;
+  promotionLedgerMaxBytes: number;
 };
 
 export function parseConfig(raw: unknown): PluginConfig {
@@ -68,6 +75,22 @@ export function parseConfig(raw: unknown): PluginConfig {
     ? Math.max(200, Math.min(12000, Math.floor(maxCharsRaw)))
     : 1800;
 
+  const contextRetentionDaysRaw = typeof obj.contextRetentionDays === "number" ? obj.contextRetentionDays : 30;
+  const contextRetentionDays = Number.isFinite(contextRetentionDaysRaw)
+    ? Math.max(1, Math.min(3650, Math.floor(contextRetentionDaysRaw)))
+    : 30;
+
+  const manifestMaxFilesRaw = typeof obj.manifestMaxFiles === "number" ? obj.manifestMaxFiles : 60;
+  const manifestMaxFiles = Number.isFinite(manifestMaxFilesRaw)
+    ? Math.max(1, Math.min(5000, Math.floor(manifestMaxFilesRaw)))
+    : 60;
+
+  const promotionLedgerMaxBytesRaw =
+    typeof obj.promotionLedgerMaxBytes === "number" ? obj.promotionLedgerMaxBytes : 524288;
+  const promotionLedgerMaxBytes = Number.isFinite(promotionLedgerMaxBytesRaw)
+    ? Math.max(1024, Math.min(104857600, Math.floor(promotionLedgerMaxBytesRaw)))
+    : 524288;
+
   return {
     vaultRoot: typeof obj.vaultRoot === "string" ? obj.vaultRoot : "/Users/pramod/clawd",
     maxInjectChars: typeof obj.maxInjectChars === "number" ? obj.maxInjectChars : 2500,
@@ -79,5 +102,8 @@ export function parseConfig(raw: unknown): PluginConfig {
     debug: typeof obj.debug === "boolean" ? obj.debug : false,
     inboxRetentionDays: typeof obj.inboxRetentionDays === "number" ? obj.inboxRetentionDays : 30,
     captureCooldownSeconds,
+    contextRetentionDays,
+    manifestMaxFiles,
+    promotionLedgerMaxBytes,
   };
 }
