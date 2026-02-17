@@ -3,10 +3,35 @@
 Local-first, filesystem-backed memory for OpenClaw.
 
 **Publish doc:** `docs/MEMORY_SYSTEM_V1.md` (install, outcomes, commands, safety, limits)
+**Release notes:** `docs/RELEASE_NOTES_v1.md`
+**Launch thread draft:** `docs/X_LAUNCH_THREAD.md`
+
+![Local-first](https://img.shields.io/badge/memory-local--first-1f6feb)
+![Traceable](https://img.shields.io/badge/context-traceable-2ea44f)
+![Tests](https://img.shields.io/badge/tests-17%2F17%20pass-success)
 
 - No cloud.
 - No API keys.
 - Auditable markdown files.
+
+## Quickstart
+
+```bash
+npm i
+npm run build
+npm test
+```
+
+Then install via your OpenClaw plugin flow and set:
+- `vaultRoot`
+- `autoCapture: true`
+- `autoPromote: "safe"`
+
+First commands:
+- `/remember your note`
+- `/recall your query`
+- `/inbox`
+- `/promote <id>`
 
 ## What it does (MVP)
 
