@@ -5,6 +5,8 @@ Local-first, filesystem-backed memory for OpenClaw.
 **Publish doc:** `docs/MEMORY_SYSTEM_V1.md` (install, outcomes, commands, safety, limits)
 **Release notes:** `docs/RELEASE_NOTES_v1.md`
 **Launch thread draft:** `docs/X_LAUNCH_THREAD.md`
+**Ops improvements:** `docs/IMPROVEMENTS_2026-02-19.md`
+**Daily anchor template:** `docs/PROJECT_ANCHOR_DAILY_TEMPLATE.md`
 
 ![Local-first](https://img.shields.io/badge/memory-local--first-1f6feb)
 ![Traceable](https://img.shields.io/badge/context-traceable-2ea44f)
